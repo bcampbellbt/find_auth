@@ -1,10 +1,10 @@
 #!/bin/bash
 
 # Activate virtual environment
-source ../venv/bin/activate
+source venv/bin/activate
 
 # Set Python path
 export PYTHONPATH="${PYTHONPATH}:$(pwd)/src"
 
-# Run the application with the correct path
-python $(pwd)/main.py "$@"
+# Run web dashboard only
+python main.py --mode web --port 5000

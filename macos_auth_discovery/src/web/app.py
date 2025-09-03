@@ -13,130 +13,43 @@ from typing import Dict, List
 from flask import Flask, render_template, jsonify, request, send_file
 import logging
 
-# Import core components
-import sys
-import os
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+# Store latest results globally
+latest_results = None
 
-from core.discovery_engine import AuthorizationDiscoveryEngine
-from core.system_monitor import SystemLevelMonitor
-from core.hardware_profile import HardwareProfileManager
 
-class DiscoveryWebApp:
-    """Flask web application for authorization discovery"""
-    
-    def __init__(self):
-        self.logger = logging.getLogger(__name__)
-        self.discovery_engine = None
-        self.discovery_thread = None
-        self.is_discovery_running = False
-        
-        # Initialize components
-        self.hardware_manager = HardwareProfileManager()
-        self.system_monitor = SystemLevelMonitor()
-        
-    def create_discovery_engine(self):
-        """Create a new discovery engine instance"""
-        self.discovery_engine = AuthorizationDiscoveryEngine(
-            hardware_manager=self.hardware_manager,
-            system_monitor=self.system_monitor
-        )
-    
-    def start_discovery_async(self):
-        """Start discovery process in background thread"""
-        if self.is_discovery_running:
-            return False
-        
-        self.create_discovery_engine()
-        self.is_discovery_running = True
-        
-        def discovery_worker():
-            try:
-                self.discovery_engine.start_discovery()
-            except Exception as e:
-                self.logger.error(f"Discovery error: {e}")
-            finally:
-                self.is_discovery_running = False
-        
-        self.discovery_thread = threading.Thread(target=discovery_worker, daemon=True)
-        self.discovery_thread.start()
-        return True
-    
-    def stop_discovery(self):
-        """Stop discovery process"""
-        if self.discovery_engine:
-            self.discovery_engine.stop_discovery()
-        self.is_discovery_running = False
 
 def create_app():
     """Create and configure Flask application"""
     app = Flask(__name__)
     app.config['SECRET_KEY'] = 'macos-auth-discovery-tool-secret'
     
-    # Initialize web app wrapper
-    web_app = DiscoveryWebApp()
-    
     @app.route('/')
     def index():
         """Main dashboard page"""
         return render_template('dashboard.html')
     
-    @app.route('/api/hardware-profile')
-    def get_hardware_profile():
-        """Get hardware profile information"""
-        return jsonify(web_app.hardware_manager.get_hardware_profile())
-    
-    @app.route('/api/discovery/start', methods=['POST'])
-    def start_discovery():
-        """Start discovery process"""
-        success = web_app.start_discovery_async()
-        return jsonify({
-            'success': success,
-            'message': 'Discovery started' if success else 'Discovery already running'
-        })
-    
-    @app.route('/api/discovery/stop', methods=['POST'])
-    def stop_discovery():
-        """Stop discovery process"""
-        web_app.stop_discovery()
-        return jsonify({
-            'success': True,
-            'message': 'Discovery stopped'
-        })
-    
-    @app.route('/api/discovery/status')
-    def get_discovery_status():
-        """Get current discovery status and progress"""
-        if web_app.discovery_engine:
-            progress = web_app.discovery_engine.get_progress()
-        else:
-            progress = {
+    @app.route('/api/progress')
+    def get_progress():
+        """Get current discovery progress"""
+        global latest_results
+        if latest_results:
+            return jsonify({
                 'is_running': False,
-                'progress_percent': 0,
-                'total_items': 0,
-                'authorizations_found': 0,
-                'current_path': '',
-                'start_time': None,
-                'elapsed_seconds': 0
-            }
-        
-        return jsonify(progress)
-    
-    @app.route('/api/discovery/results')
-    def get_discovery_results():
-        """Get current discovery results"""
-        if web_app.discovery_engine:
-            results = web_app.discovery_engine.get_results()
-            events = [event.to_dict() for event in web_app.discovery_engine.get_authorization_events()]
-        else:
-            results = []
-            events = []
-        
+                'progress_percent': 100
+            })
         return jsonify({
-            'results': results,
-            'authorization_events': events,
-            'total_authorizations': len(results),
-            'total_events': len(events)
+            'is_running': True,
+            'progress_percent': 50
+        })
+    
+    @app.route('/api/results')
+    def get_results():
+        """Get discovery results"""
+        global latest_results
+        if latest_results:
+            return jsonify(latest_results)
+        return jsonify({
+            'error': 'No results available'
         })
     
     @app.route('/api/discovery/export/<format>')

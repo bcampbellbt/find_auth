@@ -14,9 +14,10 @@ from pathlib import Path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
 
 from core.discovery_engine import AuthorizationDiscoveryEngine
+from core.command_discovery import CommandDiscoveryEngine
 from core.system_monitor import SystemLevelMonitor
 from core.hardware_profile import HardwareProfileManager
-from web.app import create_app
+from web.app import create_app, latest_results
 
 def setup_logging(level=logging.INFO):
     """Setup logging configuration"""
@@ -53,20 +54,19 @@ def main():
         if args.mode in ['discover', 'both']:
             logger.info("Starting authorization discovery process...")
             
-            # Initialize hardware profile manager
-            hardware_manager = HardwareProfileManager()
-            
-            # Initialize system monitor
-            system_monitor = SystemLevelMonitor()
-            
-            # Initialize discovery engine
-            discovery_engine = AuthorizationDiscoveryEngine(
-                hardware_manager=hardware_manager,
-                system_monitor=system_monitor
-            )
+            # Initialize command-based discovery engine
+            discovery_engine = CommandDiscoveryEngine()
             
             # Start discovery process
-            discovery_engine.start_discovery()
+            discovery_results = discovery_engine.start_discovery()
+            
+            # Store results for web dashboard
+            global latest_results
+            if 'latest_results' in globals():
+                latest_results = discovery_results
+            else:
+                import web.app
+                web.app.latest_results = discovery_results
         
         if args.mode in ['web', 'both']:
             logger.info(f"Starting Flask web application on port {args.port}...")

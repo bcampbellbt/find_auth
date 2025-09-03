@@ -12,18 +12,18 @@ This tool systematically navigates through every accessible option in macOS Syst
 
 ## ✨ Features
 
-### 🔍 **Comprehensive Discovery**
-- Automatically navigates through all System Settings panes
-- Explores sub-menus and nested configuration options
-- Detects both system-level and UI-triggered authorization requests
-- Hardware-aware navigation with proper handling of unavailable options
+### 🔍 **System-Level Discovery**
+- Uses native macOS commands to discover authorization points
+- Analyzes system files and databases for permissions
+- Detects authorization requirements through command-line tools
+- Safe, read-only operation with no UI automation required
 
-### 🛡️ **Advanced Authorization Detection**
-- **Primary Method**: System-level monitoring using Security.framework APIs
-- **Fallback Method**: UI automation when system-level detection is insufficient
-- Captures authorization right names, descriptions, and metadata
-- Monitors TCC (Privacy) framework events
-- Tracks system policy changes and kernel extension authorizations
+### 🛡️ **Command-Line Authorization Detection**
+- **System Commands**: Uses `defaults`, `system_profiler`, `security` commands
+- **File Analysis**: Inspects TCC database, plists, and system files
+- **Permission Scanning**: Checks FileVault, firmware, and network settings
+- **Database Review**: Analyzes authorization and TCC databases
+- **Configuration Analysis**: Examines system security settings
 
 ### 🌐 **Modern Web Dashboard**
 - Real-time progress monitoring during discovery
@@ -58,11 +58,11 @@ cd macos_auth_discovery
 
 ### 2. Grant Permissions
 
-Before running the tool, you need to grant several permissions in **System Preferences > Privacy & Security**:
+Before running the tool, you need administrator access to execute certain system commands. Some operations may require:
 
-- **Accessibility**: Required for UI automation
-- **Developer Tools**: Required for terminal access to system logs
-- **Full Disk Access**: Optional, but improves authorization detection
+- **Administrator privileges**: For system-level command execution
+- **Full Disk Access**: Optional, but enables TCC database inspection
+- **Terminal access**: Required for running system commands
 
 ### 3. Run the Application
 
@@ -242,15 +242,15 @@ python -m pytest tests/  # (when test suite is added)
 
 ### Common Issues
 
-1. **"Failed to open System Settings"**
-   - Ensure System Settings is not already open
-   - Grant Accessibility permissions to Terminal/iTerm
-   - Restart Terminal application
+1. **"Permission denied" errors**
+   - Run commands with sudo when required
+   - Ensure Terminal has Full Disk Access for TCC database inspection
+   - Verify administrator privileges
 
-2. **"Limited log access"**
-   - Grant Developer Tools permission to Terminal
-   - Run with administrator privileges if needed
-   - Check Console.app for authorization events
+2. **"Command not found" errors**
+   - Verify Python and required packages are installed
+   - Check system command availability
+   - Ensure correct PATH environment variable
 
 3. **"Authorization detection accuracy low"**
    - Ensure all privacy permissions are granted
@@ -285,10 +285,10 @@ Application logs are stored in:
 
 ## 📋 Known Limitations
 
-1. **Apple API Dependencies**: Some features depend on undocumented Apple APIs
-2. **Hardware-Specific Testing**: Some authorization points only trigger on specific hardware
-3. **System Version Changes**: Apple may modify System Settings structure between versions
-4. **Performance Impact**: Deep system scanning may temporarily affect system responsiveness
+1. **Command Restrictions**: Some system commands require administrator privileges
+2. **File Access**: Some system files may be restricted or require special permissions
+3. **System Version Changes**: Command output format may vary between macOS versions
+4. **Authorization Scope**: Some authorizations may only be detectable through UI interaction
 
 ## 🔒 Security Considerations
 

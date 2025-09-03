@@ -1,15 +1,15 @@
 # macOS System Settings Authorization Discovery
 
-An open-source tool for automated discovery and analysis of authorization requirements within macOS System Settings. This tool helps security professionals, system administrators, and researchers understand the complete authorization landscape of macOS systems.
+An open-source tool for automated discovery and analysis of authorization requirements within macOS systems. This tool helps security professionals, system administrators, and researchers understand the complete authorization landscape of macOS systems through system commands and file analysis.
 
 ## Features
 
-- **Comprehensive Discovery**: Automatically explores all accessible System Settings panes
-- **Authorization Detection**: Identifies points where user authorization is required
+- **System-Level Discovery**: Uses native macOS commands and system files to discover authorization points
+- **Authorization Detection**: Identifies points where user authorization is required without UI automation
 - **Real-time Monitoring**: Web dashboard for live progress tracking and results
 - **Multiple Export Formats**: JSON, CSV, and PDF report generation
-- **Hardware-Aware**: Adapts discovery based on system capabilities
-- **Security-Focused**: Non-invasive exploration with respect for system boundaries
+- **Non-Invasive**: Uses system commands and file inspection instead of UI automation
+- **Security-Focused**: Safe, read-only exploration that respects system boundaries
 
 ## Use Cases
 
@@ -18,6 +18,26 @@ An open-source tool for automated discovery and analysis of authorization requir
 - Academic research on macOS authorization mechanisms
 - Documentation of system permission requirements
 - Baseline creation for system hardening
+
+## Discovery Methods
+
+### 1. System Commands
+- `defaults read` for system and user preferences
+- `system_profiler` for hardware and software configuration
+- `networksetup` for network-related permissions
+- `security` framework commands for security settings
+
+### 2. File Analysis
+- TCC database inspection for privacy permissions
+- Property list (.plist) file analysis
+- System configuration files examination
+- Authorization database review
+
+### 3. System Monitoring
+- FileVault status and requirements
+- Firmware password protection
+- System extension authorizations
+- Network service permissions
 
 ## Quick Start
 
@@ -49,7 +69,7 @@ An open-source tool for automated discovery and analysis of authorization requir
 
 - macOS 13.0+ (Ventura, Sonoma, or Sequoia)
 - Python 3.8+
-- Accessibility permissions for UI automation
+- Administrator access for some system commands
 
 ## Contributing
 

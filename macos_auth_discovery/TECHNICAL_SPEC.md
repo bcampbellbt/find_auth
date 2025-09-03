@@ -7,9 +7,9 @@ This tool provides automated discovery and cataloging of authorization requests 
 ## 2. Technical Objectives
 
 ### Primary Goals
-- **Comprehensive Discovery**: Identify authorization requests across all accessible System Settings panes
+- **System-Level Discovery**: Identify authorization requirements through system commands and file analysis
 - **Security Testing Support**: Provide detailed authorization mapping for security testing workflows
-- **Version Compatibility**: Support multiple macOS versions with adaptive navigation
+- **Version Compatibility**: Support multiple macOS versions with command-line tools
 - **Automated Reporting**: Generate detailed reports via web dashboard interface
 
 ### Secondary Goals
@@ -20,16 +20,16 @@ This tool provides automated discovery and cataloging of authorization requests 
 ## 3. System Architecture
 
 ### 3.1 Core Components
-- **Discovery Engine**: Orchestrates System Settings navigation and element detection
-- **System Monitor**: Captures authorization events and system-level permission changes
-- **Hardware Manager**: Adapts discovery behavior based on hardware capabilities
+- **Command Discovery Engine**: Executes and analyzes system commands for authorization detection
+- **File Analyzer**: Inspects system files and databases for permission requirements
+- **System Monitor**: Captures authorization events through command-line tools
 - **Web Dashboard**: Provides real-time monitoring and results visualization
 
 ### 3.2 Technology Stack
 - **Python 3.8+**: Core application framework
-- **PyObjC**: macOS system integration and UI automation
+- **System Commands**: Native macOS command-line tools
 - **Flask**: Web dashboard and API services
-- **AppleScript**: System Settings navigation automation
+- **SQLite3**: Database inspection and analysis
 - **JSON/CSV**: Data export and storage formats
 
 ## 4. Functional Requirements
@@ -65,9 +65,9 @@ This tool provides automated discovery and cataloging of authorization requests 
 - **Storage**: 100MB free space
 
 ### 5.2 Permission Requirements
-- **Accessibility**: Required for UI automation and element detection
-- **Screen Recording**: Optional, for capturing authorization dialogs
-- **Full Disk Access**: Optional, for comprehensive system monitoring
+- **Administrator Access**: Required for system command execution
+- **Full Disk Access**: Optional, for TCC database inspection
+- **Terminal Access**: Required for command-line operations
 
 ### 5.3 Security Considerations
 - Non-destructive exploration approach
