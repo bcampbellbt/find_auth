@@ -1,0 +1,15 @@
+Flask==2.3.3
+Werkzeug==2.3.7
+Jinja2==3.1.2
+requests==2.31.0
+
+# PyObjC frameworks (fallback to latest if specific versions fail)
+pyobjc-core
+pyobjc-framework-Cocoa
+pyobjc-framework-Security
+pyobjc-framework-IOKit
+pyobjc-framework-ApplicationServices
+pyobjc-framework-Accessibility
+
+# Standard library modules (already included in Python)
+# sqlite3, json, csv, datetime, logging, threading, subprocess

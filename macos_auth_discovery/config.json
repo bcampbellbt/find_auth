@@ -1,0 +1,95 @@
+{
+  "discovery_settings": {
+    "max_discovery_time_minutes": 45,
+    "delay_between_interactions_ms": 500,
+    "delay_between_panes_seconds": 1,
+    "max_retry_attempts": 3,
+    "enable_deep_navigation": true,
+    "skip_hardware_dependent": false
+  },
+  "monitoring_settings": {
+    "system_log_check_interval_ms": 500,
+    "authorization_timeout_seconds": 5,
+    "event_deduplication_window_seconds": 1,
+    "enable_tcc_monitoring": true,
+    "enable_system_policy_monitoring": true
+  },
+  "web_settings": {
+    "host": "0.0.0.0",
+    "port": 5000,
+    "debug_mode": false,
+    "auto_refresh_interval_seconds": 2,
+    "max_export_file_size_mb": 50
+  },
+  "system_settings_panes": [
+    "Wi-Fi",
+    "Bluetooth", 
+    "Network",
+    "VPN",
+    "Notifications",
+    "Sound",
+    "Focus",
+    "Screen Time",
+    "General",
+    "Appearance",
+    "Accessibility",
+    "Control Center",
+    "Siri & Spotlight",
+    "Privacy & Security",
+    "Desktop & Dock",
+    "Displays",
+    "Wallpaper",
+    "Screen Saver",
+    "Battery",
+    "Energy Saver",
+    "Keyboard",
+    "Mouse",
+    "Trackpad",
+    "Printers & Scanners",
+    "Game Center",
+    "Internet Accounts",
+    "Passwords",
+    "Wallet & Apple Pay",
+    "Users & Groups",
+    "Touch ID & Passcode",
+    "Login Items",
+    "Date & Time",
+    "Sharing",
+    "Time Machine",
+    "Transfer or Reset",
+    "Software Update",
+    "Storage"
+  ],
+  "epm_specific_settings": {
+    "priority_authorization_rights": [
+      "system.preferences.security",
+      "system.privilege.admin",
+      "com.apple.KernelExtensionManagement",
+      "com.apple.SystemExtensions",
+      "kTCCServiceAccessibility",
+      "kTCCServiceSystemPolicyAllFiles",
+      "authenticate-admin"
+    ],
+    "focus_on_security_panes": true,
+    "detailed_privacy_analysis": true
+  },
+  "hardware_profiles": {
+    "skip_unavailable_features": true,
+    "detect_virtual_machine": true,
+    "log_hardware_dependencies": true
+  },
+  "reporting": {
+    "auto_generate_reports": true,
+    "include_hardware_profile": true,
+    "include_system_info": true,
+    "export_formats": ["json", "csv"],
+    "compress_large_reports": false
+  },
+  "logging": {
+    "level": "INFO",
+    "file_logging": true,
+    "console_logging": true,
+    "max_log_file_size_mb": 10,
+    "log_rotation_count": 5
+  }
+}

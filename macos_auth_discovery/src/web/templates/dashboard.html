@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>macOS Authorization Discovery Tool - Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #f5f5f7;
+            color: #1d1d1f;
+            line-height: 1.6;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
+            border: 1px solid #e5e5e7;
+        }
+        
+        .card h3 {
+            color: #1d1d1f;
+            margin-bottom: 1rem;
+            font-size: 1.3rem;
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .status-running {
+            background-color: #34c759;
+            animation: pulse 2s infinite;
+        }
+        
+        .status-stopped {
+            background-color: #ff3b30;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background-color: #e5e5e7;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 1rem 0;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            transition: width 0.3s ease;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 0.8rem 1.5rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            margin-right: 0.5rem;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(102, 126, 234, 0.3);
+        }
+        
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .btn-secondary {
+            background: #8e8e93;
+        }
+        
+        .btn-danger {
+            background: #ff3b30;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+        
+        .stat-item {
+            text-align: center;
+            padding: 1rem;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        
+        .stat-number {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #667eea;
+        }
+        
+        .stat-label {
+            font-size: 0.9rem;
+            color: #666;
+            margin-top: 0.5rem;
+        }
+        
+        .hardware-info {
+            background: #f8f9fa;
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+        }
+        
+        .hardware-info h4 {
+            margin-bottom: 0.5rem;
+            color: #1d1d1f;
+        }
+        
+        .hardware-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.3rem 0;
+            border-bottom: 1px solid #e5e5e7;
+        }
+        
+        .hardware-item:last-child {
+            border-bottom: none;
+        }
+        
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+        
+        .results-table th,
+        .results-table td {
+            padding: 0.8rem;
+            text-align: left;
+            border-bottom: 1px solid #e5e5e7;
+        }
+        
+        .results-table th {
+            background-color: #f8f9fa;
+            font-weight: 600;
+        }
+        
+        .alert {
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+        }
+        
+        .alert-info {
+            background-color: #e3f2fd;
+            color: #1565c0;
+            border-left: 4px solid #2196f3;
+        }
+        
+        .alert-success {
+            background-color: #e8f5e8;
+            color: #2e7d32;
+            border-left: 4px solid #4caf50;
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .nav-tabs {
+            display: flex;
+            border-bottom: 2px solid #e5e5e7;
+            margin-bottom: 2rem;
+        }
+        
+        .nav-tab {
+            padding: 1rem 1.5rem;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 1rem;
+            color: #666;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s ease;
+        }
+        
+        .nav-tab.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>macOS Authorization Discovery Tool</h1>
+        <p>Comprehensive System Settings Authorization Analysis for BeyondTrust EPM</p>
+    </div>
+    
+    <div class="container">
+        <div class="nav-tabs">
+            <button class="nav-tab active" onclick="showTab('dashboard')">Dashboard</button>
+            <button class="nav-tab" onclick="showTab('results')">Results</button>
+            <button class="nav-tab" onclick="showTab('hardware')">Hardware</button>
+        </div>
+        
+        <!-- Dashboard Tab -->
+        <div id="dashboard" class="tab-content active">
+            <div class="dashboard-grid">
+                <!-- Discovery Control -->
+                <div class="card">
+                    <h3>Discovery Control</h3>
+                    <div id="discoveryStatus">
+                        <p><span class="status-indicator status-stopped"></span> Discovery Stopped</p>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+                    </div>
+                    <p id="progressText">Ready to start discovery</p>
+                    <div style="margin-top: 1rem;">
+                        <button class="btn" id="startBtn" onclick="startDiscovery()">Start Discovery</button>
+                        <button class="btn btn-danger" id="stopBtn" onclick="stopDiscovery()" disabled>Stop Discovery</button>
+                    </div>
+                </div>
+                
+                <!-- Statistics -->
+                <div class="card">
+                    <h3>Statistics</h3>
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <div class="stat-number" id="totalAuthorizations">0</div>
+                            <div class="stat-label">Total Authorizations</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-number" id="uniqueRights">0</div>
+                            <div class="stat-label">Unique Rights</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-number" id="elapsedTime">0</div>
+                            <div class="stat-label">Elapsed (sec)</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- System Status -->
+                <div class="card">
+                    <h3>System Status</h3>
+                    <div id="systemStatus">
+                        <p>System monitor: <span id="monitorStatus">Ready</span></p>
+                        <p>Current pane: <span id="currentPane">None</span></p>
+                        <p>Last update: <span id="lastUpdate">Never</span></p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Recent Activity -->
+            <div class="card">
+                <h3>Recent Authorization Events</h3>
+                <div id="recentEvents">
+                    <p>No events detected yet. Start discovery to begin monitoring.</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Results Tab -->
+        <div id="results" class="tab-content">
+            <div class="card">
+                <h3>Discovery Results</h3>
+                <div style="margin-bottom: 1rem;">
+                    <button class="btn btn-secondary" onclick="exportResults('json')">Export JSON</button>
+                    <button class="btn btn-secondary" onclick="exportResults('csv')">Export CSV</button>
+                    <button class="btn btn-secondary" onclick="refreshResults()">Refresh</button>
+                </div>
+                <div id="resultsContainer">
+                    <p>No results available. Run discovery to generate results.</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Hardware Tab -->
+        <div id="hardware" class="tab-content">
+            <div class="card">
+                <h3>Hardware Profile</h3>
+                <div id="hardwareProfile">
+                    <p>Loading hardware information...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let discoveryRunning = false;
+        let statusInterval = null;
+        
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            loadHardwareProfile();
+            startStatusUpdates();
+        });
+        
+        // Tab management
+        function showTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('.nav-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Show selected tab
+            document.getElementById(tabName).classList.add('active');
+            event.target.classList.add('active');
+        }
+        
+        // Discovery control
+        async function startDiscovery() {
+            try {
+                const response = await fetch('/api/discovery/start', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'}
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    discoveryRunning = true;
+                    updateDiscoveryUI();
+                    showAlert('Discovery started successfully!', 'success');
+                } else {
+                    showAlert(result.message, 'info');
+                }
+            } catch (error) {
+                showAlert('Error starting discovery: ' + error.message, 'error');
+            }
+        }
+        
+        async function stopDiscovery() {
+            try {
+                const response = await fetch('/api/discovery/stop', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'}
+                });
+                const result = await response.json();
+                
+                discoveryRunning = false;
+                updateDiscoveryUI();
+                showAlert('Discovery stopped', 'info');
+            } catch (error) {
+                showAlert('Error stopping discovery: ' + error.message, 'error');
+            }
+        }
+        
+        // Status updates
+        function startStatusUpdates() {
+            statusInterval = setInterval(updateStatus, 2000); // Update every 2 seconds
+        }
+        
+        async function updateStatus() {
+            try {
+                const response = await fetch('/api/discovery/status');
+                const status = await response.json();
+                
+                discoveryRunning = status.is_running;
+                updateDiscoveryUI();
+                updateProgressUI(status);
+                updateStatsUI(status);
+                
+                document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();
+                
+            } catch (error) {
+                console.error('Error updating status:', error);
+            }
+        }
+        
+        function updateDiscoveryUI() {
+            const statusEl = document.getElementById('discoveryStatus');
+            const startBtn = document.getElementById('startBtn');
+            const stopBtn = document.getElementById('stopBtn');
+            
+            if (discoveryRunning) {
+                statusEl.innerHTML = '<p><span class="status-indicator status-running"></span> Discovery Running</p>';
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
+            } else {
+                statusEl.innerHTML = '<p><span class="status-indicator status-stopped"></span> Discovery Stopped</p>';
+                startBtn.disabled = false;
+                stopBtn.disabled = true;
+            }
+        }
+        
+        function updateProgressUI(status) {
+            const progressFill = document.getElementById('progressFill');
+            const progressText = document.getElementById('progressText');
+            const currentPane = document.getElementById('currentPane');
+            
+            progressFill.style.width = status.progress_percent + '%';
+            currentPane.textContent = status.current_path || 'None';
+            
+            if (status.is_running) {
+                progressText.textContent = `Progress: ${status.progress_percent}% (${status.authorizations_found} authorizations found)`;
+            } else if (status.progress_percent > 0) {
+                progressText.textContent = `Completed: ${status.authorizations_found} authorizations found`;
+            } else {
+                progressText.textContent = 'Ready to start discovery';
+            }
+        }
+        
+        function updateStatsUI(status) {
+            document.getElementById('totalAuthorizations').textContent = status.authorizations_found || 0;
+            document.getElementById('elapsedTime').textContent = Math.round(status.elapsed_seconds || 0);
+        }
+        
+        // Results management
+        async function refreshResults() {
+            try {
+                const response = await fetch('/api/discovery/results');
+                const data = await response.json();
+                
+                displayResults(data);
+                updateRecentEvents(data.authorization_events);
+                
+            } catch (error) {
+                showAlert('Error loading results: ' + error.message, 'error');
+            }
+        }
+        
+        function displayResults(data) {
+            const container = document.getElementById('resultsContainer');
+            
+            if (data.results.length === 0) {
+                container.innerHTML = '<p>No results available. Run discovery to generate results.</p>';
+                return;
+            }
+            
+            let html = `
+                <table class="results-table">
+                    <thead>
+                        <tr>
+                            <th>Element Path</th>
+                            <th>Authorization Right</th>
+                            <th>Description</th>
+                            <th>Timestamp</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            data.results.forEach(result => {
+                result.authorization_events.forEach(event => {
+                    html += `
+                        <tr>
+                            <td>${result.element_path}</td>
+                            <td>${event.right_name}</td>
+                            <td>${event.right_description}</td>
+                            <td>${new Date(result.timestamp).toLocaleString()}</td>
+                        </tr>
+                    `;
+                });
+            });
+            
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        }
+        
+        function updateRecentEvents(events) {
+            const container = document.getElementById('recentEvents');
+            
+            if (events.length === 0) {
+                container.innerHTML = '<p>No events detected yet. Start discovery to begin monitoring.</p>';
+                return;
+            }
+            
+            // Show last 5 events
+            const recentEvents = events.slice(-5).reverse();
+            let html = '<ul>';
+            
+            recentEvents.forEach(event => {
+                html += `
+                    <li style="padding: 0.5rem 0; border-bottom: 1px solid #eee;">
+                        <strong>${event.right_name}</strong><br>
+                        <small>${event.right_description} - ${new Date(event.timestamp).toLocaleString()}</small>
+                    </li>
+                `;
+            });
+            
+            html += '</ul>';
+            container.innerHTML = html;
+        }
+        
+        // Hardware profile
+        async function loadHardwareProfile() {
+            try {
+                const response = await fetch('/api/hardware-profile');
+                const profile = await response.json();
+                
+                displayHardwareProfile(profile);
+                
+            } catch (error) {
+                console.error('Error loading hardware profile:', error);
+            }
+        }
+        
+        function displayHardwareProfile(profile) {
+            const container = document.getElementById('hardwareProfile');
+            
+            let html = `
+                <div class="hardware-info">
+                    <h4>System Information</h4>
+                    <div class="hardware-item">
+                        <span>Model:</span>
+                        <span>${profile.model}</span>
+                    </div>
+                    <div class="hardware-item">
+                        <span>Processor:</span>
+                        <span>${profile.processor.brand}</span>
+                    </div>
+                    <div class="hardware-item">
+                        <span>Architecture:</span>
+                        <span>${profile.processor.architecture}</span>
+                    </div>
+                    <div class="hardware-item">
+                        <span>macOS Version:</span>
+                        <span>${profile.macos_version.ProductVersion}</span>
+                    </div>
+                </div>
+                
+                <div class="hardware-info">
+                    <h4>Hardware Features</h4>
+                    <div class="hardware-item">
+                        <span>Battery:</span>
+                        <span>${profile.has_battery ? '✅ Present' : '❌ Not Present'}</span>
+                    </div>
+                    <div class="hardware-item">
+                        <span>Touch ID:</span>
+                        <span>${profile.has_touch_id ? '✅ Available' : '❌ Not Available'}</span>
+                    </div>
+                    <div class="hardware-item">
+                        <span>Thunderbolt:</span>
+                        <span>${profile.has_thunderbolt ? '✅ Available' : '❌ Not Available'}</span>
+                    </div>
+                    <div class="hardware-item">
+                        <span>Wi-Fi:</span>
+                        <span>${profile.has_wifi ? '✅ Available' : '❌ Not Available'}</span>
+                    </div>
+                    <div class="hardware-item">
+                        <span>Bluetooth:</span>
+                        <span>${profile.has_bluetooth ? '✅ Available' : '❌ Not Available'}</span>
+                    </div>
+                    <div class="hardware-item">
+                        <span>Display Count:</span>
+                        <span>${profile.display_count}</span>
+                    </div>
+                </div>
+            `;
+            
+            container.innerHTML = html;
+        }
+        
+        // Export functions
+        async function exportResults(format) {
+            try {
+                const response = await fetch(`/api/discovery/export/${format}`);
+                
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `auth_discovery.${format}`;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                    
+                    showAlert(`Results exported as ${format.toUpperCase()}`, 'success');
+                } else {
+                    throw new Error('Export failed');
+                }
+                
+            } catch (error) {
+                showAlert('Error exporting results: ' + error.message, 'error');
+            }
+        }
+        
+        // Utility functions
+        function showAlert(message, type) {
+            const alertClass = `alert-${type === 'error' ? 'danger' : type}`;
+            const alertHTML = `
+                <div class="alert ${alertClass}" style="position: fixed; top: 20px; right: 20px; z-index: 1000; max-width: 300px;">
+                    ${message}
+                </div>
+            `;
+            
+            const alertElement = document.createElement('div');
+            alertElement.innerHTML = alertHTML;
+            document.body.appendChild(alertElement);
+            
+            setTimeout(() => {
+                document.body.removeChild(alertElement);
+            }, 5000);
+        }
+        
+        // Auto-refresh results when discovery is running
+        setInterval(() => {
+            if (discoveryRunning) {
+                refreshResults();
+            }
+        }, 5000);
+    </script>
+</body>
+</html>
