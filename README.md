@@ -1,320 +1,221 @@
-# macOS System Settings Authorization Discovery Tool
+# macOS Authorization Discovery Tool
 
-A comprehensive tool for discovering and cataloging authorization requests within macOS System Settings, designed to enhance security testing and system administration.
+A comprehensive tool for discovering and analyzing macOS system settings that require authentication or authorization. This tool helps security researchers, system administrators, and developers understand the authorization landscape of macOS systems.
 
-## 🎯 **Overview**OS System Settings Authorization Discovery Tool
+## Features
 
-A comprehensive tool for discovering and cataloging authorization requests within macOS System Settings, specifically designed to enhance BeyondTrust EPM testing coverage.
+- **Comprehensive Discovery**: Checks 15+ categories of macOS authorization points
+- **Web Dashboard**: User-friendly web interface for viewing results
+- **Real-time Progress**: Live updates during discovery process
+- **Detailed Analysis**: In-depth information about each authorization requirement
+- **Privacy-Focused**: Sanitized for public use, no sensitive data collection
 
-## 🎯 Overview
+## Quick Start
 
-This tool systematically navigates through every accessible option in macOS System Settings, detects authorization requests, and provides detailed reporting through a modern web dashboard. It's designed to ensure complete coverage of all authorization points that might affect endpoint protection management.
-
-## ✨ Features
-
-### 🔍 **System-Level Discovery**
-- Uses native macOS commands to discover authorization points
-- Analyzes system files and databases for permissions
-- Detects authorization requirements through command-line tools
-- Safe, read-only operation with no UI automation required
-
-### 🛡️ **Command-Line Authorization Detection**
-- **System Commands**: Uses `defaults`, `system_profiler`, `security` commands
-- **File Analysis**: Inspects TCC database, plists, and system files
-- **Permission Scanning**: Checks FileVault, firmware, and network settings
-- **Database Review**: Analyzes authorization and TCC databases
-- **Configuration Analysis**: Examines system security settings
-
-### 🌐 **Modern Web Dashboard**
-- Real-time progress monitoring during discovery
-- Interactive authorization matrix visualization
-- Hardware profile display and analysis
-- Multiple export formats (JSON, CSV, PDF)
-- Version comparison capabilities
-
-### 🔧 **Security Testing Features**
-- Identifies authorization points relevant to security testing
-- Captures privacy-related authorization requests
-- Monitors kernel extension and system extension authorization points
-- Tracks security policy modification requirements
-
-## 🖥️ System Requirements
-
-- **macOS**: 13.0 (Ventura) or later, 14.0 (Sonoma), 15.0 (Sequoia)
-- **Architecture**: Intel (x64) or Apple Silicon (ARM64)
-- **Python**: 3.8 or later
-- **Memory**: 512MB RAM minimum
-- **Storage**: 100MB free space
-
-## 🚀 Quick Start
-
-### 1. Clone and Setup
-
-```bash
-git clone <repository-url>
-cd macos_auth_discovery
-./setup.sh
-```
-
-### 2. Grant Permissions
-
-Before running the tool, you need administrator access to execute certain system commands. Some operations may require:
-
-- **Administrator privileges**: For system-level command execution
-- **Full Disk Access**: Optional, but enables TCC database inspection
-- **Terminal access**: Required for running system commands
-
-### 3. Run the Application
-
-```bash
-# Full application (discovery + web dashboard)
-./run.sh
-
-# Web dashboard only
-./run_web.sh
-
-# Discovery only (command line)
-./run_discovery.sh
-```
-
-### 4. Access Web Dashboard
-
-Open your browser and navigate to: **http://localhost:5000**
-
-## 📖 Usage Guide
-
-### Starting Discovery
-
-1. **Web Interface**:
-   - Open the web dashboard at http://localhost:5000
-   - Click "Start Discovery" on the main dashboard
-   - Monitor progress in real-time
-
-2. **Command Line**:
+1. **Clone the repository:**
    ```bash
-   python main.py --mode discover
+   git clone <repository-url>
+   cd find_auth/macos_auth_discovery
    ```
 
-### Monitoring Progress
+2. **Run the tool:**
+   ```bash
+   ./run.sh
+   ```
 
-The web dashboard provides real-time updates including:
-- **Progress percentage** and current System Settings pane
-- **Authorization count** and unique rights discovered
-- **Recent events** and system status
-- **Hardware compatibility** information
+3. **Access the dashboard:**
+   Open your browser to [http://localhost:5000](http://localhost:5000)
 
-### Viewing Results
+## What It Discovers
 
-Results are available in multiple formats:
-- **Web Dashboard**: Interactive tables and visualizations
-- **JSON Export**: Complete raw data for programmatic analysis
-- **CSV Export**: Tabular data for spreadsheet analysis
-- **Saved Reports**: Automatic report generation in `data/` directory
+The tool analyzes these authorization categories:
 
-## 🏗️ Architecture
+### Security Framework
+- **Gatekeeper**: App notarization and code signing verification
+- **System Integrity Protection (SIP)**: System file protection
+- **Secure Boot**: Boot process integrity verification
+- **FileVault**: Full disk encryption status
+- **Firmware Password**: Hardware-level access protection
 
-### Core Components
+### Privacy & Permissions
+- **TCC Database**: Privacy-sensitive app permissions
+- **Location Services**: GPS access controls
+- **Screen Recording**: Display capture permissions
+- **Full Disk Access**: Complete filesystem access
+- **Accessibility Permissions**: UI automation access
+
+### System Administration
+- **Administrator Accounts**: Users with admin privileges
+- **Password Policy**: System password requirements
+- **Certificate Trust**: SSL/TLS certificate management
+- **Keychain Access**: Secure credential storage
+
+### Network Security
+- **Application Firewall**: Network traffic filtering
+- **VPN Configurations**: Virtual private network setups
+
+### Development Tools
+- **Xcode Command Line Tools**: Developer environment
+- **Code Signing Identities**: App signing certificates
+- **System Extensions**: Kernel and system-level extensions
+
+## Web Dashboard
+
+The tool provides a comprehensive web interface featuring:
+
+- **Discovery Controls**: Start/stop discovery processes
+- **Real-time Progress**: Live updates during scanning
+- **Results Browser**: Detailed view of all findings
+- **Hardware Profile**: System information display
+- **Export Options**: Save results for further analysis
+
+## Technical Details
+
+### Architecture
+- **Flask Web Framework**: Modern web interface
+- **Python 3.13+**: Core application runtime
+- **SQLite Integration**: TCC database analysis
+- **Command-line Tools**: System command integration
+
+### Discovery Methods
+- System command execution (`spctl`, `csrutil`, `fdesetup`, etc.)
+- Database queries (TCC.db privacy permissions)
+- File system inspection (preference panes, applications)
+- Hardware profiling (security chips, architecture)
+
+### Permissions Required
+- **Standard User**: Most discovery functions work without elevation
+- **Admin Privileges**: Required for some security checks (firmware password)
+- **Accessibility**: Needed for UI automation (if using automation features)
+
+## Requirements
+
+- macOS 10.15+ (Catalina or later)
+- Python 3.8+
+- Administrative access (for some features)
+
+## Installation
+
+### Automatic Setup
+The `run.sh` script handles all setup automatically:
+```bash
+./run.sh
+```
+
+### Manual Setup
+If you prefer manual installation:
+```bash
+# Create virtual environment
+python3 -m venv venv
+source venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Run application
+python3 app.py
+```
+
+## Usage
+
+### Web Interface (Recommended)
+1. Start the server: `./run.sh`
+2. Open browser to: `http://localhost:5000`
+3. Click "Start Discovery" to begin scanning
+4. View results in real-time as they populate
+
+### Command Line
+The web interface provides the most comprehensive experience, but you can also interact with the discovery engine programmatically.
+
+## Project Structure
 
 ```
 macos_auth_discovery/
+├── app.py                 # Main Flask application entry point
+├── run.sh                # Simple launcher script
+├── requirements.txt      # Python dependencies
 ├── src/
 │   ├── core/
-│   │   ├── discovery_engine.py     # Main discovery orchestration
-│   │   ├── system_monitor.py       # System-level authorization monitoring
-│   │   └── hardware_profile.py     # Hardware detection and classification
+│   │   └── command_discovery.py    # Discovery engine
 │   └── web/
-│       ├── app.py                  # Flask web application
+│       ├── app.py                   # Flask web application
 │       └── templates/
-│           └── dashboard.html      # Web dashboard UI
-├── data/                           # Discovery reports and exports
-├── logs/                           # Application logs
-├── main.py                         # Application entry point
-└── setup.sh                       # Setup and installation script
+│           └── dashboard.html       # Web interface
+├── README.md
+└── LICENSE
 ```
 
-### Detection Strategy
+## Development
 
-1. **System-Level Monitoring** (Primary)
-   - Monitors `authd`, `SecurityAgent`, and `tccd` processes
-   - Uses Security.framework APIs where available
-   - Captures authorization database changes
+### Adding New Discovery Categories
+1. Add new check method to `CommandDiscoveryEngine` class
+2. Include in `discover_all_authorizations()` method list
+3. Update `total_checks` counter
+4. Test with various macOS configurations
 
-2. **UI Automation** (Fallback)
-   - Uses AppleScript and Accessibility APIs
-   - Simulates user interactions with System Settings
-   - Monitors for authorization dialogs and prompts
+### Customizing Web Interface
+- Templates in `src/web/templates/`
+- Static files can be added to `src/web/static/`
+- API endpoints in `src/web/app.py`
 
-### Hardware Classification
+## Security Considerations
 
-The tool automatically detects and adapts to different Mac configurations:
-- **Model identification** and processor information
-- **Feature detection** (Battery, Touch ID, Thunderbolt, etc.)
-- **Hardware-specific setting filtering** (skips unavailable options)
-- **Comprehensive compatibility matrix** for different Mac models
+- Tool runs with minimal privileges by default
+- No sensitive data is collected or transmitted
+- All analysis is performed locally
+- Results contain system configuration, not user data
 
-## 📊 Reports and Analysis
+## Compatibility
 
-### Discovery Reports
+### Tested macOS Versions
+- macOS 15.x (Sequoia) ✅
+- macOS 14.x (Sonoma) ✅  
+- macOS 13.x (Ventura) ✅
+- macOS 12.x (Monterey) ✅
 
-Each discovery session generates a comprehensive report including:
+### Hardware Compatibility
+- Apple Silicon (M1/M2/M3) ✅
+- Intel-based Macs ✅
+- T2 Security Chip detection ✅
 
-```json
-{
-  "discovery_session": {
-    "start_time": "2025-09-03T10:30:00",
-    "end_time": "2025-09-03T11:15:00",
-    "duration_seconds": 2700,
-    "total_authorizations_found": 47,
-    "hardware_profile": { ... },
-    "unavailable_features": [ ... ]
-  },
-  "authorization_results": [
-    {
-      "element_path": "Privacy & Security > Camera",
-      "element_name": "Camera Access",
-      "authorization_events": [
-        {
-          "right_name": "kTCCServiceCamera",
-          "right_description": "Camera access",
-          "context": "TCC Framework",
-          "timestamp": "2025-09-03T10:35:22"
-        }
-      ]
-    }
-  ]
-}
-```
-
-### Version Comparison
-
-The web dashboard enables comparison between different macOS versions to identify:
-- **New authorization requirements** introduced in updates
-- **Removed or modified** authorization points
-- **Changes in authorization behavior** between versions
-
-## 🔧 Configuration
-
-### Command Line Options
-
-```bash
-python main.py [OPTIONS]
-
-Options:
-  --mode {discover,web,both}    Mode to run (default: both)
-  --port INTEGER                Port for web application (default: 5000)
-  --debug                       Enable debug mode
-  --log-level {DEBUG,INFO,WARNING,ERROR}  Logging level (default: INFO)
-```
-
-### Environment Variables
-
-```bash
-export PYTHONPATH="${PYTHONPATH}:$(pwd)/src"  # Required for module imports
-```
-
-## 🛠️ Development
-
-### Project Structure
-
-- **Core Logic**: `src/core/` contains the main discovery and monitoring logic
-- **Web Interface**: `src/web/` contains the Flask application and templates
-- **Data Storage**: `data/` directory for reports and exports
-- **Logging**: `logs/` directory for application logs
-
-### Adding New Features
-
-1. **New Authorization Detection**: Extend `SystemLevelMonitor` class
-2. **Additional UI Elements**: Modify `SystemSettingsNavigator` class
-3. **Web Dashboard Features**: Update Flask routes in `web/app.py`
-4. **Hardware Support**: Enhance `HardwareProfileManager` class
-
-### Testing
-
-```bash
-# Run discovery in test mode
-python main.py --mode discover --debug
-
-# Test specific components
-python -m pytest tests/  # (when test suite is added)
-```
-
-## 🔍 Troubleshooting
+## Troubleshooting
 
 ### Common Issues
 
-1. **"Permission denied" errors**
-   - Run commands with sudo when required
-   - Ensure Terminal has Full Disk Access for TCC database inspection
-   - Verify administrator privileges
-
-2. **"Command not found" errors**
-   - Verify Python and required packages are installed
-   - Check system command availability
-   - Ensure correct PATH environment variable
-
-3. **"Authorization detection accuracy low"**
-   - Ensure all privacy permissions are granted
-   - Run discovery when system is not under heavy load
-   - Check for conflicting endpoint protection software
-
-4. **"Web dashboard not accessible"**
-   - Check if port 5000 is available
-   - Use `--port` option to specify different port
-   - Verify Flask installation with `pip list | grep Flask`
-
-### Debug Mode
-
-Enable debug mode for detailed logging:
-
+**Permission Denied Errors**
 ```bash
-python main.py --debug --log-level DEBUG
+# Grant Full Disk Access to Terminal.app in:
+# System Settings > Privacy & Security > Full Disk Access
 ```
 
-This provides verbose output including:
-- Detailed AppleScript execution results
-- System log monitoring details
-- UI automation step-by-step progress
-- Hardware detection diagnostics
+**Web Server Won't Start**
+```bash
+# Check if port 5000 is available
+lsof -i :5000
 
-### Log Files
+# Use different port if needed
+export FLASK_RUN_PORT=8080
+python3 app.py
+```
 
-Application logs are stored in:
-- **Main log**: `auth_discovery.log`
-- **Discovery reports**: `data/auth_discovery_report_*.json`
-- **System logs**: Use Console.app to monitor system authorization events
+**Discovery Finds Few Results**
+- Ensure Terminal.app has necessary permissions
+- Run with admin privileges: `sudo ./run.sh`
+- Check System Settings > Privacy & Security permissions
 
-## 📋 Known Limitations
-
-1. **Command Restrictions**: Some system commands require administrator privileges
-2. **File Access**: Some system files may be restricted or require special permissions
-3. **System Version Changes**: Command output format may vary between macOS versions
-4. **Authorization Scope**: Some authorizations may only be detectable through UI interaction
-
-## 🔒 Security Considerations
-
-- **Non-Destructive**: All discovery actions are designed to be reversible
-- **Permission Handling**: Respects existing system security settings
-- **Data Privacy**: All discovered data is stored locally
-- **System Integrity**: No modification of system security configurations
-
-## 📄 License
-
-This project is open source. See license terms for usage details.
-
-## 🤝 Contributing
+## Contributing
 
 1. Fork the repository
-2. Create a feature branch
-3. Make changes with appropriate tests
-4. Submit a pull request with detailed description
+2. Create feature branch: `git checkout -b feature-name`
+3. Test on multiple macOS versions
+4. Submit pull request with detailed description
 
-## 📞 Support
+## License
 
-For issues and questions:
-1. Check the troubleshooting section above
-2. Review application logs in debug mode
-3. Create an issue with detailed system information and error logs
+MIT License - see LICENSE file for details.
 
----
+## Acknowledgments
 
-**Note**: This tool requires appropriate permissions and system access. Always run in a controlled testing environment and respect system security settings.
+- Built for macOS security research community
+- Inspired by need for comprehensive authorization visibility
+- Designed with privacy and security best practices
