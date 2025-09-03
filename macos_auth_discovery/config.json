@@ -60,7 +60,7 @@
     "Software Update",
     "Storage"
   ],
-  "epm_specific_settings": {
+  "security_testing_settings": {
     "priority_authorization_rights": [
       "system.preferences.security",
       "system.privilege.admin",

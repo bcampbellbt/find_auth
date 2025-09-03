@@ -123,7 +123,7 @@ if __name__ == "__main__":
     discovery.discover_panes()
 '''
     
-    with open('/Users/bcampbell/find_auth/macos_auth_discovery/limited_discovery.py', 'w') as f:
+    with open('limited_discovery.py', 'w') as f:
         f.write(limited_script)
     
     print("✅ Created limited_discovery.py")

@@ -1,5 +1,9 @@
 # macOS System Settings Authorization Discovery Tool
 
+A comprehensive tool for discovering and cataloging authorization requests within macOS System Settings, designed to enhance security testing and system administration.
+
+## 🎯 **Overview**OS System Settings Authorization Discovery Tool
+
 A comprehensive tool for discovering and cataloging authorization requests within macOS System Settings, specifically designed to enhance BeyondTrust EPM testing coverage.
 
 ## 🎯 Overview
@@ -28,8 +32,8 @@ This tool systematically navigates through every accessible option in macOS Syst
 - Multiple export formats (JSON, CSV, PDF)
 - Version comparison capabilities
 
-### 🔧 **EPM-Specific Features**
-- Identifies authorization points relevant to endpoint protection
+### 🔧 **Security Testing Features**
+- Identifies authorization points relevant to security testing
 - Captures privacy-related authorization requests
 - Monitors kernel extension and system extension authorization points
 - Tracks security policy modification requirements
@@ -47,7 +51,8 @@ This tool systematically navigates through every accessible option in macOS Syst
 ### 1. Clone and Setup
 
 ```bash
-cd /Users/bcampbell/find_auth/macos_auth_discovery
+git clone <repository-url>
+cd macos_auth_discovery
 ./setup.sh
 ```
 
@@ -294,7 +299,7 @@ Application logs are stored in:
 
 ## 📄 License
 
-This project is developed for BeyondTrust EPM testing purposes. See license terms for usage restrictions.
+This project is open source. See license terms for usage details.
 
 ## 🤝 Contributing
 
@@ -312,4 +317,4 @@ For issues and questions:
 
 ---
 
-**Note**: This tool is specifically designed for BeyondTrust EPM testing and requires appropriate permissions and system access. Always run in a controlled testing environment.
+**Note**: This tool requires appropriate permissions and system access. Always run in a controlled testing environment and respect system security settings.

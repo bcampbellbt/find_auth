@@ -59,7 +59,7 @@ class SystemLevelMonitor:
     
     def _load_known_authorization_rights(self):
         """Load known authorization rights and their descriptions"""
-        # Common macOS authorization rights relevant to EPM
+        # Common macOS authorization rights relevant to security testing
         self.known_rights = {
             # System Preferences / System Settings
             'system.preferences': 'Access System Preferences',

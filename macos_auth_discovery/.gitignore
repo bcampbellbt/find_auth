@@ -75,3 +75,17 @@ instance/
 *.bak
 *.backup
 *.old
+
+# Application-specific
+auth_discovery.log
+*.log
+results/
+output/
+reports/
+temp/
+.DS_Store
+
+# Personal information
+*bcampbell*
+*campbell*
+*/Users/bcampbell/*
