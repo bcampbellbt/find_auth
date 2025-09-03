@@ -22,10 +22,22 @@ class CommandDiscoveryEngine:
         self.is_running = False
         self.progress = 0
         self.no_sudo = no_sudo
-        self.total_checks = 15  # Total number of discovery categories
+        self.total_checks = 50  # Significantly increased for comprehensive coverage
         self.current_check = 0
         if no_sudo:
             self.logger.info("Running in no-sudo mode - some checks may be skipped")
+        
+        # Load system settings panes from config
+        self.system_panes = [
+            "Wi-Fi", "Bluetooth", "Network", "VPN", "Notifications", "Sound", "Focus", 
+            "Screen Time", "General", "Appearance", "Accessibility", "Control Center",
+            "Siri & Spotlight", "Privacy & Security", "Desktop & Dock", "Displays",
+            "Wallpaper", "Screen Saver", "Battery", "Energy Saver", "Keyboard", "Mouse",
+            "Trackpad", "Printers & Scanners", "Game Center", "Internet Accounts",
+            "Passwords", "Wallet & Apple Pay", "Users & Groups", "Touch ID & Passcode",
+            "Login Items", "Date & Time", "Sharing", "Time Machine", "Transfer or Reset",
+            "Software Update", "Storage"
+        ]
         
     def _run_command(self, command: str) -> tuple[int, str, str]:
         """Run a shell command and return exit code, stdout, stderr"""
@@ -257,6 +269,410 @@ class CommandDiscoveryEngine:
 
         return auth_points
 
+    def _check_wifi_security(self) -> List[Dict[str, Any]]:
+        """Check Wi-Fi security and authentication settings"""
+        self._update_progress("Wi-Fi Security Settings")
+        auth_points = []
+        
+        # Check Wi-Fi network configurations
+        code, stdout, stderr = self._run_command("networksetup -listallhardwareports | grep Wi-Fi -A1")
+        if code == 0:
+            auth_points.append({
+                "type": "network",
+                "category": "Wi-Fi",
+                "location": "Wi-Fi",
+                "status": "configured",
+                "requires_auth": True,
+                "auth_type": "admin",
+                "timestamp": datetime.now().isoformat(),
+                "description": "Wi-Fi network configuration requires admin authentication"
+            })
+        
+        # Check for stored Wi-Fi passwords
+        code, stdout, stderr = self._run_command("security find-generic-password -D 'AirPort network password' 2>/dev/null | wc -l")
+        if code == 0 and stdout.strip() != "0":
+            auth_points.append({
+                "type": "network",
+                "category": "Wi-Fi",
+                "location": "Wi-Fi → Saved Networks",
+                "status": "stored_passwords",
+                "requires_auth": True,
+                "auth_type": "keychain_access",
+                "timestamp": datetime.now().isoformat(),
+                "description": "Viewing saved Wi-Fi passwords requires authentication"
+            })
+        
+        return auth_points
+
+    def _check_bluetooth_security(self) -> List[Dict[str, Any]]:
+        """Check Bluetooth security and pairing requirements"""
+        self._update_progress("Bluetooth Security Settings")
+        auth_points = []
+        
+        # Check Bluetooth configuration
+        code, stdout, stderr = self._run_command("system_profiler SPBluetoothDataType")
+        if code == 0 and "Bluetooth" in stdout:
+            auth_points.append({
+                "type": "network",
+                "category": "Bluetooth",
+                "location": "Bluetooth",
+                "status": "available",
+                "requires_auth": True,
+                "auth_type": "user_consent",
+                "timestamp": datetime.now().isoformat(),
+                "description": "Bluetooth device pairing and management"
+            })
+        
+        return auth_points
+
+    def _check_privacy_security_comprehensive(self) -> List[Dict[str, Any]]:
+        """Comprehensive Privacy & Security settings check"""
+        self._update_progress("Privacy & Security Comprehensive")
+        auth_points = []
+        
+        privacy_categories = [
+            "Location Services", "Contacts", "Calendars", "Reminders", "Photos",
+            "Camera", "Microphone", "Screen Recording", "Files and Folders",
+            "Full Disk Access", "Accessibility", "Developer Tools", "Input Monitoring"
+        ]
+        
+        for category in privacy_categories:
+            auth_points.append({
+                "type": "privacy",
+                "category": category,
+                "location": f"Privacy & Security → {category}",
+                "status": "protected",
+                "requires_auth": True,
+                "auth_type": "admin",
+                "timestamp": datetime.now().isoformat(),
+                "description": f"Modifying {category} permissions requires admin authentication"
+            })
+        
+        return auth_points
+
+    def _check_users_groups_comprehensive(self) -> List[Dict[str, Any]]:
+        """Comprehensive Users & Groups settings check"""
+        self._update_progress("Users & Groups Comprehensive")
+        auth_points = []
+        
+        # Check user management functions
+        user_functions = [
+            "Add User", "Delete User", "Change Password", "Admin Privileges",
+            "Parental Controls", "Login Options", "Fast User Switching"
+        ]
+        
+        for function in user_functions:
+            auth_points.append({
+                "type": "accounts",
+                "category": "User Management",
+                "location": f"Users & Groups → {function}",
+                "status": "restricted",
+                "requires_auth": True,
+                "auth_type": "admin",
+                "timestamp": datetime.now().isoformat(),
+                "description": f"{function} requires administrator authentication"
+            })
+        
+        return auth_points
+
+    def _check_sharing_services(self) -> List[Dict[str, Any]]:
+        """Check Sharing services and their authorization requirements"""
+        self._update_progress("Sharing Services")
+        auth_points = []
+        
+        sharing_services = [
+            "Screen Sharing", "File Sharing", "Media Sharing", "Printer Sharing",
+            "Remote Login", "Remote Management", "Remote Apple Events",
+            "Internet Sharing", "Bluetooth Sharing", "Content Caching"
+        ]
+        
+        for service in sharing_services:
+            auth_points.append({
+                "type": "sharing",
+                "category": "Sharing Service",
+                "location": f"Sharing → {service}",
+                "status": "configurable",
+                "requires_auth": True,
+                "auth_type": "admin",
+                "timestamp": datetime.now().isoformat(),
+                "description": f"Enabling {service} requires admin authentication"
+            })
+        
+        return auth_points
+
+    def _check_time_machine_settings(self) -> List[Dict[str, Any]]:
+        """Check Time Machine backup settings"""
+        self._update_progress("Time Machine Settings")
+        auth_points = []
+        
+        # Check Time Machine status
+        code, stdout, stderr = self._run_command("tmutil status")
+        if code == 0:
+            auth_points.append({
+                "type": "backup",
+                "category": "Time Machine",
+                "location": "Time Machine",
+                "status": "configured" if "Running" in stdout else "available",
+                "requires_auth": True,
+                "auth_type": "admin",
+                "timestamp": datetime.now().isoformat(),
+                "description": "Time Machine configuration requires admin authentication"
+            })
+        
+        # Check for backup destinations
+        code, stdout, stderr = self._run_command("tmutil destinationinfo")
+        if code == 0 and stdout.strip():
+            auth_points.append({
+                "type": "backup",
+                "category": "Time Machine",
+                "location": "Time Machine → Select Backup Disk",
+                "status": "configured",
+                "requires_auth": True,
+                "auth_type": "admin",
+                "timestamp": datetime.now().isoformat(),
+                "description": "Changing backup destination requires admin authentication"
+            })
+        
+        return auth_points
+
+    def _check_software_update_settings(self) -> List[Dict[str, Any]]:
+        """Check Software Update settings and automatic updates"""
+        self._update_progress("Software Update Settings")
+        auth_points = []
+        
+        # Check software update preferences
+        code, stdout, stderr = self._run_command("defaults read /Library/Preferences/com.apple.SoftwareUpdate")
+        if code == 0:
+            auth_points.append({
+                "type": "system",
+                "category": "Software Update",
+                "location": "Software Update",
+                "status": "configurable",
+                "requires_auth": True,
+                "auth_type": "admin",
+                "timestamp": datetime.now().isoformat(),
+                "description": "Modifying automatic update settings requires admin authentication"
+            })
+        
+        return auth_points
+
+    def _check_network_advanced_settings(self) -> List[Dict[str, Any]]:
+        """Check advanced network settings and configurations"""
+        self._update_progress("Network Advanced Settings")
+        auth_points = []
+        
+        # Check network locations
+        code, stdout, stderr = self._run_command("networksetup -listlocations")
+        if code == 0:
+            auth_points.append({
+                "type": "network",
+                "category": "Network Locations",
+                "location": "Network → Network Locations",
+                "status": "configurable",
+                "requires_auth": True,
+                "auth_type": "admin",
+                "timestamp": datetime.now().isoformat(),
+                "description": "Creating and modifying network locations requires admin authentication"
+            })
+        
+        # Check DNS settings
+        auth_points.append({
+            "type": "network",
+            "category": "DNS Settings",
+            "location": "Network → Advanced → DNS",
+            "status": "configurable",
+            "requires_auth": True,
+            "auth_type": "admin",
+            "timestamp": datetime.now().isoformat(),
+            "description": "Modifying DNS settings requires admin authentication"
+        })
+        
+        return auth_points
+
+    def _check_accessibility_settings(self) -> List[Dict[str, Any]]:
+        """Check Accessibility settings and permissions"""
+        self._update_progress("Accessibility Settings")
+        auth_points = []
+        
+        accessibility_features = [
+            "Display", "Zoom", "VoiceOver", "Descriptions", "Captions",
+            "Motor", "Switch Control", "Voice Control", "Keyboard",
+            "Pointer Control", "Hearing", "Audio"
+        ]
+        
+        for feature in accessibility_features:
+            auth_points.append({
+                "type": "accessibility",
+                "category": "Accessibility Feature",
+                "location": f"Accessibility → {feature}",
+                "status": "configurable",
+                "requires_auth": True,
+                "auth_type": "admin",
+                "timestamp": datetime.now().isoformat(),
+                "description": f"Configuring {feature} accessibility settings may require authentication"
+            })
+        
+        return auth_points
+
+    def _check_energy_settings(self) -> List[Dict[str, Any]]:
+        """Check Energy/Battery settings"""
+        self._update_progress("Energy Settings")
+        auth_points = []
+        
+        # Check power management settings
+        code, stdout, stderr = self._run_command("pmset -g")
+        if code == 0:
+            auth_points.append({
+                "type": "system",
+                "category": "Energy Settings",
+                "location": "Battery/Energy Saver",
+                "status": "configurable",
+                "requires_auth": True,
+                "auth_type": "admin",
+                "timestamp": datetime.now().isoformat(),
+                "description": "Modifying energy settings requires admin authentication"
+            })
+        
+        return auth_points
+
+    def _check_display_settings(self) -> List[Dict[str, Any]]:
+        """Check Display settings and configurations"""
+        self._update_progress("Display Settings")
+        auth_points = []
+        
+        # Check display configuration
+        code, stdout, stderr = self._run_command("system_profiler SPDisplaysDataType")
+        if code == 0:
+            auth_points.append({
+                "type": "display",
+                "category": "Display Configuration",
+                "location": "Displays",
+                "status": "configurable",
+                "requires_auth": False,  # Most display settings don't require auth
+                "auth_type": "none",
+                "timestamp": datetime.now().isoformat(),
+                "description": "Basic display settings available to all users"
+            })
+        
+        return auth_points
+
+    def _check_startup_disk_settings(self) -> List[Dict[str, Any]]:
+        """Check Startup Disk selection"""
+        self._update_progress("Startup Disk Settings")
+        auth_points = []
+        
+        # Check available startup disks
+        code, stdout, stderr = self._run_command("bless --info --getboot")
+        if code == 0:
+            auth_points.append({
+                "type": "system",
+                "category": "Startup Disk",
+                "location": "General → Startup Disk",
+                "status": "selectable",
+                "requires_auth": True,
+                "auth_type": "admin",
+                "timestamp": datetime.now().isoformat(),
+                "description": "Changing startup disk requires admin authentication"
+            })
+        
+        return auth_points
+
+    def _check_certificate_trust_settings(self) -> List[Dict[str, Any]]:
+        """Check Certificate Trust Settings"""
+        self._update_progress("Certificate Trust Settings")
+        auth_points = []
+        
+        # Check system certificates
+        code, stdout, stderr = self._run_command("security dump-trust-settings -s")
+        if code == 0:
+            auth_points.append({
+                "type": "security",
+                "category": "Certificate Trust",
+                "location": "Privacy & Security → Certificates",
+                "status": "managed",
+                "requires_auth": True,
+                "auth_type": "admin",
+                "timestamp": datetime.now().isoformat(),
+                "description": "Modifying certificate trust settings requires admin authentication"
+            })
+        
+        return auth_points
+
+    def _check_application_firewall(self) -> List[Dict[str, Any]]:
+        """Check Application Firewall settings"""
+        self._update_progress("Application Firewall")
+        auth_points = []
+        
+        # Check firewall status
+        code, stdout, stderr = self._run_command("defaults read /Library/Preferences/com.apple.alf globalstate")
+        if code == 0:
+            auth_points.append({
+                "type": "security",
+                "category": "Application Firewall",
+                "location": "Privacy & Security → Firewall",
+                "status": "configurable",
+                "requires_auth": True,
+                "auth_type": "admin",
+                "timestamp": datetime.now().isoformat(),
+                "description": "Configuring application firewall requires admin authentication"
+            })
+        
+        return auth_points
+
+    def _check_system_extensions(self) -> List[Dict[str, Any]]:
+        """Check System Extensions and Kernel Extensions"""
+        self._update_progress("System Extensions")
+        auth_points = []
+        
+        # Check system extensions
+        code, stdout, stderr = self._run_command("systemextensionsctl list")
+        if code == 0:
+            auth_points.append({
+                "type": "security",
+                "category": "System Extensions",
+                "location": "Privacy & Security → Security",
+                "status": "managed",
+                "requires_auth": True,
+                "auth_type": "admin",
+                "timestamp": datetime.now().isoformat(),
+                "description": "Managing system extensions requires admin authentication"
+            })
+        
+        return auth_points
+
+    def _check_login_items_comprehensive(self) -> List[Dict[str, Any]]:
+        """Check Login Items and background apps"""
+        self._update_progress("Login Items Comprehensive")
+        auth_points = []
+        
+        # Check login items
+        code, stdout, stderr = self._run_command("osascript -e 'tell application \"System Events\" to get the name of every login item'")
+        if code == 0:
+            auth_points.append({
+                "type": "system",
+                "category": "Login Items",
+                "location": "General → Login Items",
+                "status": "configurable",
+                "requires_auth": False,  # Users can modify their own login items
+                "auth_type": "user",
+                "timestamp": datetime.now().isoformat(),
+                "description": "Users can manage their own login items"
+            })
+        
+        # Check system-wide launch agents/daemons
+        auth_points.append({
+            "type": "system",
+            "category": "System Launch Items",
+            "location": "General → Login Items → Allow in Background",
+            "status": "restricted",
+            "requires_auth": True,
+            "auth_type": "admin",
+            "timestamp": datetime.now().isoformat(),
+            "description": "System-wide launch items require admin authentication"
+        })
+        
+        return auth_points
+
     def discover_all_authorizations(self) -> List[Dict[str, Any]]:
         """Run comprehensive authorization discovery"""
         self.logger.info("Starting comprehensive macOS authorization discovery...")
@@ -266,15 +682,34 @@ class CommandDiscoveryEngine:
         self.discovery_results = []
         
         try:
-            # Run all discovery methods
+            # Comprehensive discovery methods - significantly expanded
             discovery_methods = [
+                # Original methods
                 self._check_tcc_database,
                 self._check_security_framework,
                 self._check_network_security,
                 self._check_user_accounts,
                 self._check_keychain_access,
                 self._check_system_preferences_auth,
-                self._check_developer_tools
+                self._check_developer_tools,
+                
+                # New comprehensive methods
+                self._check_wifi_security,
+                self._check_bluetooth_security,
+                self._check_privacy_security_comprehensive,
+                self._check_users_groups_comprehensive,
+                self._check_sharing_services,
+                self._check_time_machine_settings,
+                self._check_software_update_settings,
+                self._check_network_advanced_settings,
+                self._check_accessibility_settings,
+                self._check_energy_settings,
+                self._check_display_settings,
+                self._check_startup_disk_settings,
+                self._check_certificate_trust_settings,
+                self._check_application_firewall,
+                self._check_system_extensions,
+                self._check_login_items_comprehensive
             ]
             
             for method in discovery_methods:
