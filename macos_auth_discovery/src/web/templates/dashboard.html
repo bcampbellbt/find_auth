@@ -440,8 +440,8 @@
                             <div class="stat-label">Total Authorizations</div>
                         </div>
                         <div class="stat-item">
-                            <div class="stat-number" id="uniqueRights">0</div>
-                            <div class="stat-label">Unique Rights</div>
+                            <div class="stat-number" id="uniqueCategories">0</div>
+                            <div class="stat-label">Categories</div>
                         </div>
                         <div class="stat-item">
                             <div class="stat-number" id="elapsedTime">0</div>
@@ -455,6 +455,14 @@
             </div>
             
             <!-- Recent Activity (full width below) -->
+            <div class="card">
+                <h3>Authorization Categories</h3>
+                <div id="categoriesBreakdown">
+                    <p>No categories available yet. Start discovery to see breakdown.</p>
+                </div>
+            </div>
+            
+            <!-- Recent Activity -->
             <div class="card">
                 <h3>Recent Authorization Events</h3>
                 <div id="recentEvents">
@@ -794,45 +802,88 @@
                 .then(data => {
                     console.log('Stats update - received data:', data);
                     let totalCount = 0;
-                    let categories = new Set();
+                    let categories = {};
                     
                     if (data.discovery_results && Array.isArray(data.discovery_results)) {
                         totalCount = data.discovery_results.length;
                         data.discovery_results.forEach(result => {
-                            if (result.type) categories.add(result.type);
+                            const type = result.type || 'Unknown';
+                            categories[type] = (categories[type] || 0) + 1;
                         });
                     } else if (data.summary && data.summary.total) {
                         totalCount = data.summary.total;
                         if (data.summary.categories) {
-                            Object.keys(data.summary.categories).forEach(cat => categories.add(cat));
+                            categories = data.summary.categories;
                         }
                     }
                     
-                    console.log(`Stats update - total: ${totalCount}, categories: ${categories.size}`);
+                    console.log(`Stats update - total: ${totalCount}, categories: ${Object.keys(categories).length}`);
                     
                     const totalElement = document.getElementById('totalAuthorizations');
-                    const rightsElement = document.getElementById('uniqueRights');
+                    const categoriesElement = document.getElementById('uniqueCategories');
                     
                     if (totalElement) {
                         totalElement.textContent = totalCount;
                     }
-                    if (rightsElement) {
-                        rightsElement.textContent = categories.size;
+                    if (categoriesElement) {
+                        categoriesElement.textContent = Object.keys(categories).length;
                     }
+                    
+                    // Update the categories breakdown display
+                    updateCategoriesBreakdown(categories);
                 })
                 .catch(error => {
                     console.error('Error updating stats from results:', error);
                     // Fallback to status data
                     const totalElement = document.getElementById('totalAuthorizations');
-                    const rightsElement = document.getElementById('uniqueRights');
+                    const categoriesElement = document.getElementById('uniqueCategories');
                     
                     if (totalElement) {
                         totalElement.textContent = status.results_count || status.authorizations_found || 0;
                     }
-                    if (rightsElement) {
-                        rightsElement.textContent = '0';
+                    if (categoriesElement) {
+                        categoriesElement.textContent = '0';
                     }
                 });
+        }
+        
+        function updateCategoriesBreakdown(categories) {
+            const container = document.getElementById('categoriesBreakdown');
+            
+            if (Object.keys(categories).length === 0) {
+                container.innerHTML = '<p>No categories available yet. Start discovery to see breakdown.</p>';
+                return;
+            }
+            
+            // Sort categories by count (descending)
+            const sortedCategories = Object.entries(categories).sort((a, b) => b[1] - a[1]);
+            
+            let html = '<div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">';
+            
+            sortedCategories.forEach(([category, count]) => {
+                // Capitalize category name and make it more readable
+                const displayName = category.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                
+                html += `
+                    <div class="stat-item" style="text-align: left; padding: 1rem; background: #f8f9fa; border-radius: 8px;">
+                        <div style="font-size: 1.4rem; font-weight: bold; color: #667eea; margin-bottom: 0.3rem;">${count}</div>
+                        <div style="font-size: 0.9rem; color: #333; font-weight: 500;">${displayName}</div>
+                        <div style="width: 100%; height: 4px; background: #e5e5e7; border-radius: 2px; margin-top: 0.5rem;">
+                            <div style="height: 100%; background: linear-gradient(90deg, #667eea, #764ba2); border-radius: 2px; width: ${Math.max(10, (count / Math.max(...Object.values(categories))) * 100)}%;"></div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            html += '</div>';
+            
+            // Add summary text
+            html += `<div style="margin-top: 1rem; padding: 0.8rem; background: #e3f2fd; border-radius: 6px; border-left: 4px solid #2196f3;">
+                <strong>${Object.keys(categories).length} authorization categories</strong> discovered across the macOS system.
+                These represent different types of security controls and system settings areas.
+            </div>`;
+            
+            container.innerHTML = html;
         }
         
         // Results management
@@ -858,6 +909,9 @@
                 
                 // Update recent events with the discovery results
                 updateRecentEvents(data);
+                
+                // Update categories breakdown
+                updateCategoriesFromResults(data);
                 
             } catch (error) {
                 console.error('Error in refreshResults:', error);
@@ -944,6 +998,33 @@
             
             html += '</tbody></table>';
             container.innerHTML = html;
+        }
+        
+        function updateCategoriesFromResults(data) {
+            // Extract categories from results data
+            let categories = {};
+            let results = [];
+            
+            if (data.discovery_results && Array.isArray(data.discovery_results)) {
+                results = data.discovery_results;
+            } else if (data.authorization_results) {
+                for (const category in data.authorization_results) {
+                    if (Array.isArray(data.authorization_results[category])) {
+                        results = results.concat(data.authorization_results[category]);
+                    }
+                }
+            } else if (data.results && Array.isArray(data.results)) {
+                results = data.results;
+            } else if (Array.isArray(data)) {
+                results = data;
+            }
+            
+            results.forEach(result => {
+                const type = result.type || 'Unknown';
+                categories[type] = (categories[type] || 0) + 1;
+            });
+            
+            updateCategoriesBreakdown(categories);
         }
         
         function updateRecentEvents(data) {

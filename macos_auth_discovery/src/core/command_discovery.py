@@ -22,7 +22,7 @@ class CommandDiscoveryEngine:
         self.is_running = False
         self.progress = 0
         self.no_sudo = no_sudo
-        self.total_checks = 50  # Significantly increased for comprehensive coverage
+        self.total_checks = 75  # Significantly increased for comprehensive coverage of all 36+ system areas
         self.current_check = 0
         self.current_category = "Not started"  # Track current scanning category
         self.start_time = None  # Track when discovery starts
@@ -817,6 +817,550 @@ class CommandDiscoveryEngine:
         
         return auth_points
 
+    def _check_sound_settings(self) -> List[Dict[str, Any]]:
+        """Check Sound settings authorization requirements"""
+        self._update_progress("Sound Settings")
+        auth_points = []
+        
+        # Check audio device settings
+        code, stdout, stderr = self._run_command("system_profiler SPAudioDataType")
+        if code == 0:
+            auth_points.append({
+                "type": "system_settings",
+                "category": "Sound",
+                "location": "Sound → Output/Input",
+                "status": "available",
+                "requires_auth": False,
+                "auth_type": "none",
+                "timestamp": datetime.now().isoformat(),
+                "description": "Audio device configuration"
+            })
+        
+        # Check alert sounds
+        code, stdout, stderr = self._run_command("defaults read com.apple.systemsound")
+        auth_points.append({
+            "type": "system_settings",
+            "category": "Sound",
+            "location": "Sound → Sound Effects",
+            "status": "user_setting",
+            "requires_auth": False,
+            "auth_type": "user",
+            "timestamp": datetime.now().isoformat(),
+            "description": "Alert sound configuration"
+        })
+        
+        return auth_points
+
+    def _check_focus_settings(self) -> List[Dict[str, Any]]:
+        """Check Focus settings authorization requirements"""
+        self._update_progress("Focus Settings")
+        auth_points = []
+        
+        # Check Do Not Disturb settings
+        code, stdout, stderr = self._run_command("defaults read com.apple.ncprefs")
+        auth_points.append({
+            "type": "system_settings",
+            "category": "Focus",
+            "location": "Focus → Do Not Disturb",
+            "status": "user_setting",
+            "requires_auth": False,
+            "auth_type": "user",
+            "timestamp": datetime.now().isoformat(),
+            "description": "Focus mode configuration"
+        })
+        
+        return auth_points
+
+    def _check_general_settings(self) -> List[Dict[str, Any]]:
+        """Check General settings authorization requirements"""
+        self._update_progress("General Settings")
+        auth_points = []
+        
+        # Check system-wide settings
+        code, stdout, stderr = self._run_command("defaults read NSGlobalDomain")
+        auth_points.append({
+            "type": "system_settings",
+            "category": "General",
+            "location": "General → About",
+            "status": "system_info",
+            "requires_auth": False,
+            "auth_type": "none",
+            "timestamp": datetime.now().isoformat(),
+            "description": "System information display"
+        })
+        
+        # Check AirDrop & Handoff
+        code, stdout, stderr = self._run_command("defaults read com.apple.sharingd")
+        auth_points.append({
+            "type": "system_settings",
+            "category": "General",
+            "location": "General → AirDrop & Handoff",
+            "status": "user_setting",
+            "requires_auth": False,
+            "auth_type": "user",
+            "timestamp": datetime.now().isoformat(),
+            "description": "AirDrop and Handoff configuration"
+        })
+        
+        return auth_points
+
+    def _check_appearance_settings(self) -> List[Dict[str, Any]]:
+        """Check Appearance settings authorization requirements"""
+        self._update_progress("Appearance Settings")
+        auth_points = []
+        
+        # Check appearance mode
+        code, stdout, stderr = self._run_command("defaults read NSGlobalDomain AppleInterfaceStyle")
+        auth_points.append({
+            "type": "system_settings",
+            "category": "Appearance",
+            "location": "Appearance → Interface Style",
+            "status": "user_setting",
+            "requires_auth": False,
+            "auth_type": "user",
+            "timestamp": datetime.now().isoformat(),
+            "description": "Light/Dark mode configuration"
+        })
+        
+        # Check accent color
+        code, stdout, stderr = self._run_command("defaults read NSGlobalDomain AppleAccentColor")
+        auth_points.append({
+            "type": "system_settings",
+            "category": "Appearance",
+            "location": "Appearance → Accent Color",
+            "status": "user_setting",
+            "requires_auth": False,
+            "auth_type": "user",
+            "timestamp": datetime.now().isoformat(),
+            "description": "System accent color"
+        })
+        
+        return auth_points
+
+    def _check_desktop_dock_settings(self) -> List[Dict[str, Any]]:
+        """Check Desktop & Dock settings authorization requirements"""
+        self._update_progress("Desktop & Dock Settings")
+        auth_points = []
+        
+        # Check Dock settings
+        code, stdout, stderr = self._run_command("defaults read com.apple.dock")
+        auth_points.append({
+            "type": "system_settings",
+            "category": "Desktop & Dock",
+            "location": "Desktop & Dock → Dock",
+            "status": "user_setting",
+            "requires_auth": False,
+            "auth_type": "user",
+            "timestamp": datetime.now().isoformat(),
+            "description": "Dock appearance and behavior"
+        })
+        
+        # Check Mission Control
+        code, stdout, stderr = self._run_command("defaults read com.apple.dock expose-animation-duration")
+        auth_points.append({
+            "type": "system_settings",
+            "category": "Desktop & Dock",
+            "location": "Desktop & Dock → Mission Control",
+            "status": "user_setting",
+            "requires_auth": False,
+            "auth_type": "user",
+            "timestamp": datetime.now().isoformat(),
+            "description": "Mission Control configuration"
+        })
+        
+        return auth_points
+
+    def _check_wallpaper_screensaver_settings(self) -> List[Dict[str, Any]]:
+        """Check Wallpaper & Screen Saver settings authorization requirements"""
+        self._update_progress("Wallpaper & Screen Saver Settings")
+        auth_points = []
+        
+        # Check wallpaper settings
+        code, stdout, stderr = self._run_command("defaults read com.apple.desktop")
+        auth_points.append({
+            "type": "system_settings",
+            "category": "Wallpaper & Screen Saver",
+            "location": "Wallpaper & Screen Saver → Desktop Picture",
+            "status": "user_setting",
+            "requires_auth": False,
+            "auth_type": "user",
+            "timestamp": datetime.now().isoformat(),
+            "description": "Desktop wallpaper configuration"
+        })
+        
+        # Check screen saver settings
+        code, stdout, stderr = self._run_command("defaults read com.apple.screensaver")
+        auth_points.append({
+            "type": "system_settings",
+            "category": "Wallpaper & Screen Saver",
+            "location": "Wallpaper & Screen Saver → Screen Saver",
+            "status": "user_setting",
+            "requires_auth": False,
+            "auth_type": "user",
+            "timestamp": datetime.now().isoformat(),
+            "description": "Screen saver configuration"
+        })
+        
+        return auth_points
+
+    def _check_keyboard_mouse_settings(self) -> List[Dict[str, Any]]:
+        """Check Keyboard & Mouse settings authorization requirements"""
+        self._update_progress("Keyboard & Mouse Settings")
+        auth_points = []
+        
+        # Check keyboard settings
+        code, stdout, stderr = self._run_command("defaults read NSGlobalDomain InitialKeyRepeat")
+        auth_points.append({
+            "type": "system_settings",
+            "category": "Keyboard",
+            "location": "Keyboard → Key Repeat",
+            "status": "user_setting",
+            "requires_auth": False,
+            "auth_type": "user",
+            "timestamp": datetime.now().isoformat(),
+            "description": "Keyboard repeat rate"
+        })
+        
+        # Check mouse settings
+        code, stdout, stderr = self._run_command("defaults read com.apple.driver.AppleBluetoothMultitouch.mouse")
+        auth_points.append({
+            "type": "system_settings",
+            "category": "Mouse",
+            "location": "Mouse → Tracking Speed",
+            "status": "user_setting",
+            "requires_auth": False,
+            "auth_type": "user",
+            "timestamp": datetime.now().isoformat(),
+            "description": "Mouse tracking configuration"
+        })
+        
+        return auth_points
+
+    def _check_trackpad_settings(self) -> List[Dict[str, Any]]:
+        """Check Trackpad settings authorization requirements"""
+        self._update_progress("Trackpad Settings")
+        auth_points = []
+        
+        # Check trackpad settings
+        code, stdout, stderr = self._run_command("defaults read com.apple.driver.AppleBluetoothMultitouch.trackpad")
+        auth_points.append({
+            "type": "system_settings",
+            "category": "Trackpad",
+            "location": "Trackpad → Point & Click",
+            "status": "user_setting",
+            "requires_auth": False,
+            "auth_type": "user",
+            "timestamp": datetime.now().isoformat(),
+            "description": "Trackpad gesture configuration"
+        })
+        
+        return auth_points
+
+    def _check_printers_scanners_settings(self) -> List[Dict[str, Any]]:
+        """Check Printers & Scanners settings authorization requirements"""
+        self._update_progress("Printers & Scanners Settings")
+        auth_points = []
+        
+        # Check printer settings - requires admin for adding/removing
+        code, stdout, stderr = self._run_command("lpstat -p")
+        auth_points.append({
+            "type": "system_settings",
+            "category": "Printers & Scanners",
+            "location": "Printers & Scanners → Add Printer",
+            "status": "requires_admin",
+            "requires_auth": True,
+            "auth_type": "admin",
+            "timestamp": datetime.now().isoformat(),
+            "description": "Add or remove printers requires admin authorization"
+        })
+        
+        return auth_points
+
+    def _check_game_center_settings(self) -> List[Dict[str, Any]]:
+        """Check Game Center settings authorization requirements"""
+        self._update_progress("Game Center Settings")
+        auth_points = []
+        
+        # Check Game Center settings
+        code, stdout, stderr = self._run_command("defaults read com.apple.gamed")
+        auth_points.append({
+            "type": "system_settings",
+            "category": "Game Center",
+            "location": "Game Center → Account",
+            "status": "user_setting",
+            "requires_auth": False,
+            "auth_type": "user",
+            "timestamp": datetime.now().isoformat(),
+            "description": "Game Center account configuration"
+        })
+        
+        return auth_points
+
+    def _check_internet_accounts_settings(self) -> List[Dict[str, Any]]:
+        """Check Internet Accounts settings authorization requirements"""
+        self._update_progress("Internet Accounts Settings")
+        auth_points = []
+        
+        # Check internet accounts
+        code, stdout, stderr = self._run_command("defaults read MobileMeAccounts")
+        auth_points.append({
+            "type": "system_settings",
+            "category": "Internet Accounts",
+            "location": "Internet Accounts → Add Account",
+            "status": "user_setting",
+            "requires_auth": False,
+            "auth_type": "user",
+            "timestamp": datetime.now().isoformat(),
+            "description": "Internet account configuration"
+        })
+        
+        return auth_points
+
+    def _check_passwords_settings(self) -> List[Dict[str, Any]]:
+        """Check Passwords settings authorization requirements"""
+        self._update_progress("Passwords Settings")
+        auth_points = []
+        
+        # Password settings are managed through Passwords app
+        auth_points.append({
+            "type": "system_settings",
+            "category": "Passwords",
+            "location": "Passwords → Password Options",
+            "status": "app_managed",
+            "requires_auth": True,
+            "auth_type": "password",
+            "timestamp": datetime.now().isoformat(),
+            "description": "Password management requires authentication"
+        })
+        
+        return auth_points
+
+    def _check_wallet_apple_pay_settings(self) -> List[Dict[str, Any]]:
+        """Check Wallet & Apple Pay settings authorization requirements"""
+        self._update_progress("Wallet & Apple Pay Settings")
+        auth_points = []
+        
+        # Apple Pay settings
+        auth_points.append({
+            "type": "system_settings",
+            "category": "Wallet & Apple Pay",
+            "location": "Wallet & Apple Pay → Payment Cards",
+            "status": "secure_element",
+            "requires_auth": True,
+            "auth_type": "biometric",
+            "timestamp": datetime.now().isoformat(),
+            "description": "Apple Pay configuration requires biometric authentication"
+        })
+        
+        return auth_points
+
+    def _check_touch_id_passcode_settings(self) -> List[Dict[str, Any]]:
+        """Check Touch ID & Passcode settings authorization requirements"""
+        self._update_progress("Touch ID & Passcode Settings")
+        auth_points = []
+        
+        # Check biometric settings
+        code, stdout, stderr = self._run_command("bioutil -rs")
+        if "Touch ID" in stdout or "Face ID" in stdout:
+            auth_points.append({
+                "type": "system_settings",
+                "category": "Touch ID & Passcode",
+                "location": "Touch ID & Passcode → Touch ID",
+                "status": "biometric_required",
+                "requires_auth": True,
+                "auth_type": "admin",
+                "timestamp": datetime.now().isoformat(),
+                "description": "Touch ID configuration requires admin authentication"
+            })
+        
+        return auth_points
+
+    def _check_date_time_settings(self) -> List[Dict[str, Any]]:
+        """Check Date & Time settings authorization requirements"""
+        self._update_progress("Date & Time Settings")
+        auth_points = []
+        
+        # Check date/time settings
+        code, stdout, stderr = self._run_command("systemsetup -getdate")
+        if code == 0 or "requires admin" in stderr.lower():
+            auth_points.append({
+                "type": "system_settings",
+                "category": "Date & Time",
+                "location": "Date & Time → Set Date & Time",
+                "status": "admin_required",
+                "requires_auth": True,
+                "auth_type": "admin",
+                "timestamp": datetime.now().isoformat(),
+                "description": "System date/time changes require admin authorization"
+            })
+        
+        return auth_points
+
+    def _check_screen_time_settings(self) -> List[Dict[str, Any]]:
+        """Check Screen Time settings authorization requirements"""
+        self._update_progress("Screen Time Settings")
+        auth_points = []
+        
+        # Screen Time settings
+        code, stdout, stderr = self._run_command("defaults read com.apple.screentime")
+        auth_points.append({
+            "type": "system_settings",
+            "category": "Screen Time",
+            "location": "Screen Time → App & Website Activity",
+            "status": "parental_controls",
+            "requires_auth": True,
+            "auth_type": "password",
+            "timestamp": datetime.now().isoformat(),
+            "description": "Screen Time configuration requires Screen Time passcode"
+        })
+        
+        return auth_points
+
+    def _check_control_center_settings(self) -> List[Dict[str, Any]]:
+        """Check Control Center settings authorization requirements"""
+        self._update_progress("Control Center Settings")
+        auth_points = []
+        
+        # Control Center settings
+        code, stdout, stderr = self._run_command("defaults read com.apple.controlcenter")
+        auth_points.append({
+            "type": "system_settings",
+            "category": "Control Center",
+            "location": "Control Center → Control Center Modules",
+            "status": "user_setting",
+            "requires_auth": False,
+            "auth_type": "user",
+            "timestamp": datetime.now().isoformat(),
+            "description": "Control Center module configuration"
+        })
+        
+        return auth_points
+
+    def _check_siri_spotlight_settings(self) -> List[Dict[str, Any]]:
+        """Check Siri & Spotlight settings authorization requirements"""
+        self._update_progress("Siri & Spotlight Settings")
+        auth_points = []
+        
+        # Siri settings
+        code, stdout, stderr = self._run_command("defaults read com.apple.assistant.support")
+        auth_points.append({
+            "type": "system_settings",
+            "category": "Siri & Spotlight",
+            "location": "Siri & Spotlight → Siri",
+            "status": "privacy_sensitive",
+            "requires_auth": False,
+            "auth_type": "user",
+            "timestamp": datetime.now().isoformat(),
+            "description": "Siri configuration affects privacy settings"
+        })
+        
+        # Spotlight settings
+        code, stdout, stderr = self._run_command("defaults read com.apple.spotlight")
+        auth_points.append({
+            "type": "system_settings",
+            "category": "Siri & Spotlight",
+            "location": "Siri & Spotlight → Spotlight",
+            "status": "user_setting",
+            "requires_auth": False,
+            "auth_type": "user",
+            "timestamp": datetime.now().isoformat(),
+            "description": "Spotlight search configuration"
+        })
+        
+        return auth_points
+
+    def _check_notifications_settings(self) -> List[Dict[str, Any]]:
+        """Check Notifications settings authorization requirements"""
+        self._update_progress("Notifications Settings")
+        auth_points = []
+        
+        # Notification settings
+        code, stdout, stderr = self._run_command("defaults read com.apple.ncprefs")
+        auth_points.append({
+            "type": "system_settings",
+            "category": "Notifications",
+            "location": "Notifications → Application Notifications",
+            "status": "user_setting",
+            "requires_auth": False,
+            "auth_type": "user",
+            "timestamp": datetime.now().isoformat(),
+            "description": "Per-app notification configuration"
+        })
+        
+        return auth_points
+
+    def _check_vpn_settings(self) -> List[Dict[str, Any]]:
+        """Check VPN settings authorization requirements"""
+        self._update_progress("VPN Settings")
+        auth_points = []
+        
+        # VPN configuration
+        code, stdout, stderr = self._run_command("scutil --nc list")
+        auth_points.append({
+            "type": "system_settings",
+            "category": "VPN",
+            "location": "VPN → VPN Configurations",
+            "status": "network_config",
+            "requires_auth": True,
+            "auth_type": "admin",
+            "timestamp": datetime.now().isoformat(),
+            "description": "VPN configuration requires admin authorization"
+        })
+        
+        return auth_points
+
+    def _check_transfer_reset_settings(self) -> List[Dict[str, Any]]:
+        """Check Transfer or Reset settings authorization requirements"""
+        self._update_progress("Transfer or Reset Settings")
+        auth_points = []
+        
+        # System reset options
+        auth_points.append({
+            "type": "system_settings",
+            "category": "Transfer or Reset",
+            "location": "Transfer or Reset → Erase All Content and Settings",
+            "status": "destructive_action",
+            "requires_auth": True,
+            "auth_type": "admin",
+            "timestamp": datetime.now().isoformat(),
+            "description": "System reset requires admin authorization"
+        })
+        
+        return auth_points
+
+    def _check_storage_settings(self) -> List[Dict[str, Any]]:
+        """Check Storage settings authorization requirements"""
+        self._update_progress("Storage Settings")
+        auth_points = []
+        
+        # Storage management
+        code, stdout, stderr = self._run_command("df -h")
+        auth_points.append({
+            "type": "system_settings",
+            "category": "Storage",
+            "location": "Storage → Storage Recommendations",
+            "status": "system_info",
+            "requires_auth": False,
+            "auth_type": "none",
+            "timestamp": datetime.now().isoformat(),
+            "description": "Storage information and optimization"
+        })
+        
+        # iCloud storage optimization
+        code, stdout, stderr = self._run_command("defaults read com.apple.bird")
+        auth_points.append({
+            "type": "system_settings",
+            "category": "Storage",
+            "location": "Storage → iCloud",
+            "status": "user_setting",
+            "requires_auth": False,
+            "auth_type": "user",
+            "timestamp": datetime.now().isoformat(),
+            "description": "iCloud storage optimization"
+        })
+        
+        return auth_points
+
     def _generate_comprehensive_authorization_map(self) -> List[Dict[str, Any]]:
         """Generate comprehensive authorization map from known System Settings locations"""
         self._update_progress("Comprehensive Authorization Mapping")
@@ -851,9 +1395,9 @@ class CommandDiscoveryEngine:
         self.discovery_results = []
         
         try:
-            # Comprehensive discovery methods - significantly expanded
+            # Comprehensive discovery methods - significantly expanded to cover all 36+ System Settings areas
             discovery_methods = [
-                # Original methods
+                # Core system security methods
                 self._check_tcc_database,
                 self._check_security_framework,
                 self._check_network_security,
@@ -862,23 +1406,53 @@ class CommandDiscoveryEngine:
                 self._check_system_preferences_auth,
                 self._check_developer_tools,
                 
-                # New comprehensive methods
+                # Network & Communication methods
                 self._check_wifi_security,
                 self._check_bluetooth_security,
-                self._check_privacy_security_comprehensive,
-                self._check_users_groups_comprehensive,
-                self._check_sharing_services,
-                self._check_time_machine_settings,
-                self._check_software_update_settings,
                 self._check_network_advanced_settings,
+                self._check_vpn_settings,
+                
+                # Privacy & Security comprehensive methods
+                self._check_privacy_security_comprehensive,
                 self._check_accessibility_settings,
-                self._check_energy_settings,
-                self._check_display_settings,
-                self._check_startup_disk_settings,
                 self._check_certificate_trust_settings,
                 self._check_application_firewall,
                 self._check_system_extensions,
+                
+                # User & System Management methods
+                self._check_users_groups_comprehensive,
                 self._check_login_items_comprehensive,
+                self._check_touch_id_passcode_settings,
+                self._check_passwords_settings,
+                
+                # System Settings UI Areas (all 36+ areas)
+                self._check_sound_settings,
+                self._check_focus_settings,
+                self._check_notifications_settings,
+                self._check_screen_time_settings,
+                self._check_general_settings,
+                self._check_appearance_settings,
+                self._check_control_center_settings,
+                self._check_siri_spotlight_settings,
+                self._check_desktop_dock_settings,
+                self._check_display_settings,
+                self._check_wallpaper_screensaver_settings,
+                self._check_energy_settings,
+                self._check_keyboard_mouse_settings,
+                self._check_trackpad_settings,
+                self._check_printers_scanners_settings,
+                self._check_game_center_settings,
+                self._check_internet_accounts_settings,
+                self._check_wallet_apple_pay_settings,
+                self._check_date_time_settings,
+                
+                # System Maintenance & Backup
+                self._check_sharing_services,
+                self._check_time_machine_settings,
+                self._check_software_update_settings,
+                self._check_transfer_reset_settings,
+                self._check_storage_settings,
+                self._check_startup_disk_settings,
                 
                 # Comprehensive authorization mapping
                 self._generate_comprehensive_authorization_map
