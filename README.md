@@ -17,14 +17,19 @@ A comprehensive tool for discovering and analyzing macOS system settings that re
 
 1. **Clone the repository:**
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/bcampbellbt/find_auth.git
    cd find_auth/macos_auth_discovery
    ```
 
-2. **Run the tool:**
+2. **Run the tool (automatic setup):**
    ```bash
    ./run.sh
    ```
+   
+   The script will automatically:
+   - Create a Python virtual environment
+   - Install all dependencies
+   - Start the web server
 
 3. **Access the dashboard:**
    Open your browser to [http://localhost:5000](http://localhost:5000)
@@ -125,30 +130,55 @@ This ensures the tool works accurately across different macOS versions and syste
 
 ## Requirements
 
-- macOS 10.15+ (Catalina or later)
-- Python 3.8+
-- Administrative access (for some features)
+- **macOS 10.15+ (Catalina or later)** - Required for modern System Settings support
+- **Python 3.8+** - Will be checked automatically by setup script
+- **Admin Privileges** - Required for some advanced security checks (optional)
+- **Terminal Access** - For running command-line tools and system analysis
+
+### System Permissions (Automatic Setup)
+The tool will guide you through granting necessary permissions:
+- **Full Disk Access** - For comprehensive system analysis
+- **Developer Tools** - For security framework access
+- **Privacy Settings** - For TCC database analysis
 
 ## Installation
 
-### Automatic Setup
-The `run.sh` script handles all setup automatically:
+## Installation
+
+### One-Command Setup (Recommended)
 ```bash
-./run.sh
+# Clone and run in one command
+git clone https://github.com/bcampbellbt/find_auth.git && cd find_auth/macos_auth_discovery && ./run.sh
 ```
 
-### Manual Setup
-If you prefer manual installation:
+### Step-by-Step Installation
+If you prefer manual setup or encounter issues:
+
 ```bash
-# Create virtual environment
+# 1. Clone the repository
+git clone https://github.com/bcampbellbt/find_auth.git
+cd find_auth/macos_auth_discovery
+
+# 2. Ensure Python 3.8+ is installed
+python3 --version
+
+# 3. Create virtual environment
 python3 -m venv venv
+
+# 4. Activate virtual environment
 source venv/bin/activate
 
-# Install dependencies
+# 5. Install dependencies
 pip install -r requirements.txt
 
-# Run application
+# 6. Run the application
 python3 app.py
+```
+
+### Docker Setup (Alternative)
+For containerized deployment:
+```bash
+# Coming soon - Docker support in development
 ```
 
 ## Usage
