@@ -5,11 +5,14 @@ An open-source tool for automated discovery and analysis of authorization requir
 ## Features
 
 - **System-Level Discovery**: Uses native macOS commands and system files to discover authorization points
+- **Dynamic System Settings Discovery**: Automatically discovers available System Settings panes based on macOS version and hardware
+- **Comprehensive Hardware Profiling**: Detects system capabilities, security features, and hardware-dependent settings
 - **Authorization Detection**: Identifies points where user authorization is required without UI automation
 - **Real-time Monitoring**: Web dashboard for live progress tracking and results
 - **Multiple Export Formats**: JSON, CSV, and PDF report generation
 - **Non-Invasive**: Uses system commands and file inspection instead of UI automation
 - **Security-Focused**: Safe, read-only exploration that respects system boundaries
+- **Version Adaptive**: Works across different macOS versions with automatic adaptation
 
 ## Use Cases
 
@@ -33,11 +36,19 @@ An open-source tool for automated discovery and analysis of authorization requir
 - System configuration files examination
 - Authorization database review
 
-### 3. System Monitoring
-- FileVault status and requirements
-- Firmware password protection
-- System extension authorizations
-- Network service permissions
+### 3. Hardware Profiling
+- Mac model identification and classification
+- Apple Silicon vs Intel architecture detection
+- Security feature availability (Touch ID, Face ID, Secure Enclave)
+- Connectivity capabilities (Thunderbolt, Wi-Fi, Bluetooth)
+- Display and audio device enumeration
+- Battery and power management status
+
+### 4. Dynamic System Settings Discovery
+- Real-time System Settings pane enumeration
+- macOS version-aware discovery methods
+- Hardware-dependent pane filtering
+- Extension-based discovery for modern macOS versions
 
 ## Quick Start
 

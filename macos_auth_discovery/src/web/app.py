@@ -185,121 +185,69 @@ def create_app():
     @app.route('/api/hardware-profile')
     def get_hardware_profile():
         """Get hardware profile information"""
-        # Try to get hardware info from the latest report, or provide default
-        current_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        data_dir = os.path.join(current_dir, 'data')
+        global discovery_engine
         
-        if os.path.exists(data_dir):
-            json_files = [f for f in os.listdir(data_dir) if f.endswith('.json')]
-            if json_files:
-                latest_file = max(json_files, key=lambda x: os.path.getctime(os.path.join(data_dir, x)))
-                try:
-                    with open(os.path.join(data_dir, latest_file), 'r') as f:
-                        data = json.load(f)
-                        if 'discovery_session' in data and 'hardware_profile' in data['discovery_session']:
-                            return jsonify(data['discovery_session']['hardware_profile'])
-                except Exception as e:
-                    pass
+        # Try to get hardware info from the discovery engine first
+        if discovery_engine:
+            return jsonify(discovery_engine.get_hardware_profile_info())
         
-        # Fallback hardware profile
-        import platform
-        import subprocess
-        
+        # Fallback: create temporary discovery engine to get hardware info
         try:
-            # Get macOS version details
-            mac_ver = platform.mac_ver()
-            
-            # Get basic system info
-            system_info = {
-                'model': 'Unknown Mac',
-                'processor': {
-                    'brand': platform.processor() or 'Unknown Processor',
-                    'architecture': platform.machine()
-                },
-                'macos_version': {
-                    'ProductVersion': mac_ver[0] or 'Unknown'
-                },
-                'has_battery': False,
-                'has_touch_id': False,
-                'has_thunderbolt': False,
-                'features': {
-                    'has_touchid': False,
-                    'has_secure_enclave': False,
-                    'has_neural_engine': False,
-                    'has_integrated_battery': False
-                }
-            }
-            
-            # Try to get more detailed Mac model info
+            from core.command_discovery import CommandDiscoveryEngine
+            temp_engine = CommandDiscoveryEngine()
+            return jsonify(temp_engine.get_hardware_profile_info())
+        except Exception as e:
+            # If that fails, try direct hardware profile manager
             try:
-                result = subprocess.run(['system_profiler', 'SPHardwareDataType'], 
-                                      capture_output=True, text=True, timeout=10)
-                if result.returncode == 0:
-                    output = result.stdout
-                    for line in output.split('\n'):
-                        if 'Model Name:' in line:
-                            system_info['model'] = line.split(':', 1)[1].strip()
-                        elif 'Model Identifier:' in line:
-                            system_info['model_identifier'] = line.split(':', 1)[1].strip()
-                        elif 'Chip:' in line:
-                            system_info['chip'] = line.split(':', 1)[1].strip()
-                        elif 'Processor Name:' in line:
-                            system_info['processor']['brand'] = line.split(':', 1)[1].strip()
-            except Exception:
-                pass
-            
-            # Check for battery presence
-            try:
-                result = subprocess.run(['system_profiler', 'SPPowerDataType'], 
-                                      capture_output=True, text=True, timeout=10)
-                if result.returncode == 0 and 'Battery Information:' in result.stdout:
-                    system_info['has_battery'] = True
-                    system_info['features']['has_integrated_battery'] = True
-            except Exception:
-                pass
-            
-            # Check for Touch ID capability
-            try:
-                result = subprocess.run(['system_profiler', 'SPiBridgeDataType'], 
-                                      capture_output=True, text=True, timeout=10)
-                if result.returncode == 0 and ('Touch ID' in result.stdout or 'TouchID' in result.stdout):
-                    system_info['has_touch_id'] = True
-                    system_info['features']['has_touchid'] = True
-                    system_info['features']['has_secure_enclave'] = True
-            except Exception:
-                pass
-            
-            # Check for Thunderbolt ports
-            try:
-                result = subprocess.run(['system_profiler', 'SPThunderboltDataType'], 
-                                      capture_output=True, text=True, timeout=10)
-                if result.returncode == 0 and 'Thunderbolt' in result.stdout:
-                    system_info['has_thunderbolt'] = True
-            except Exception:
-                pass
-            
-            return jsonify(system_info)
-            
+                from core.hardware_profile import HardwareProfileManager
+                hw_manager = HardwareProfileManager()
+                return jsonify(hw_manager.get_hardware_profile())
+            except Exception as e2:
+                # Ultimate fallback: basic system info
+                import platform
+                
+                try:
+                    mac_ver = platform.mac_ver()
+                    return jsonify({
+                        'model': 'Unknown Mac',
+                        'processor': {
+                            'brand': platform.processor() or 'Unknown Processor',
+                            'architecture': platform.machine()
+                        },
+                        'macos_version': {
+                            'ProductVersion': mac_ver[0] or 'Unknown'
+                        },
+                        'has_battery': False,
+                        'has_touch_id': False,
+                        'has_thunderbolt': False,
+                        'has_wifi': True,
+                        'has_bluetooth': True,
+                        'display_count': 1,
+                        'error': f'Hardware detection failed: {str(e2)}'
+                    })
+                except Exception as e3:
+                    return jsonify({
+                        'model': 'Unknown Mac',
+                        'error': f'Complete hardware detection failure: {str(e3)}'
+                    })
+
+    @app.route('/api/pane-discovery')
+    def get_pane_discovery():
+        """Get dynamic pane discovery information"""
+        global discovery_engine
+        
+        if discovery_engine:
+            return jsonify(discovery_engine.get_pane_discovery_info())
+        
+        # Fallback: create temporary discovery engine to get pane info
+        try:
+            from core.command_discovery import CommandDiscoveryEngine
+            temp_engine = CommandDiscoveryEngine()
+            return jsonify(temp_engine.get_pane_discovery_info())
         except Exception as e:
             return jsonify({
-                'model': 'Unknown Mac',
-                'processor': {
-                    'brand': 'Unknown Processor',
-                    'architecture': platform.machine()
-                },
-                'macos_version': {
-                    'ProductVersion': platform.mac_ver()[0] or 'Unknown'
-                },
-                'has_battery': False,
-                'has_touch_id': False,
-                'has_thunderbolt': False,
-                'features': {
-                    'has_touchid': False,
-                    'has_secure_enclave': False,
-                    'has_neural_engine': False,
-                    'has_integrated_battery': False
-                },
-                'error': str(e)
+                'error': f'Failed to get pane discovery info: {str(e)}',
+                'fallback': True
             })
     
     @app.route('/api/progress')

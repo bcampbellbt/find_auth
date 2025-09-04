@@ -521,6 +521,12 @@
                     <p>Loading hardware information...</p>
                 </div>
             </div>
+            <div class="card">
+                <h3>System Settings Discovery</h3>
+                <div id="paneDiscoveryInfo">
+                    <p>Loading pane discovery information...</p>
+                </div>
+            </div>
         </div>
     </div>
     
@@ -536,6 +542,7 @@
         // Initialize dashboard
         document.addEventListener('DOMContentLoaded', function() {
             loadHardwareProfile();
+            loadPaneDiscoveryInfo();
             // Don't start status updates automatically - only when discovery is started
             // Just check initial status once without starting intervals
             checkInitialStatus();
@@ -1133,6 +1140,79 @@
                     <div class="hardware-item">
                         <span>Display Count:</span>
                         <span>${profile.display_count}</span>
+                    </div>
+                </div>
+            `;
+            
+            container.innerHTML = html;
+        }
+
+        // Load and display pane discovery information
+        async function loadPaneDiscoveryInfo() {
+            try {
+                const response = await fetch('/api/pane-discovery');
+                const discoveryInfo = await response.json();
+                displayPaneDiscoveryInfo(discoveryInfo);
+                
+            } catch (error) {
+                console.error('Error loading pane discovery info:', error);
+            }
+        }
+        
+        function displayPaneDiscoveryInfo(discoveryInfo) {
+            const container = document.getElementById('paneDiscoveryInfo');
+            if (!container) return;
+            
+            let html = `
+                <div class="hardware-info">
+                    <h4>System Settings Discovery</h4>
+                    <div class="hardware-item">
+                        <span>Total Panes:</span>
+                        <span>${discoveryInfo.total_panes}</span>
+                    </div>
+                    <div class="hardware-item">
+                        <span>macOS Version:</span>
+                        <span>${discoveryInfo.macos_version}</span>
+                    </div>
+                    <div class="hardware-item">
+                        <span>System Type:</span>
+                        <span>${discoveryInfo.uses_modern_settings ? 'Modern System Settings' : 'Legacy System Preferences'}</span>
+                    </div>
+                </div>
+                
+                <div class="hardware-info">
+                    <h4>Pane Types</h4>
+            `;
+            
+            if (discoveryInfo.pane_types) {
+                for (const [type, count] of Object.entries(discoveryInfo.pane_types)) {
+                    const friendlyName = type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                    html += `
+                        <div class="hardware-item">
+                            <span>${friendlyName}:</span>
+                            <span>${count} panes</span>
+                        </div>
+                    `;
+                }
+            }
+            
+            html += `
+                </div>
+                
+                <div class="hardware-info">
+                    <h4>Available Panes (${discoveryInfo.pane_names ? discoveryInfo.pane_names.length : 0})</h4>
+                    <div style="font-size: 0.9em; line-height: 1.4; margin-top: 0.5rem;">
+            `;
+            
+            if (discoveryInfo.pane_names && discoveryInfo.pane_names.length > 0) {
+                discoveryInfo.pane_names.forEach((paneName, index) => {
+                    html += `<div style="padding: 3px 0; border-bottom: 1px solid #f0f0f0;">• ${paneName}</div>`;
+                });
+            } else {
+                html += '<div style="padding: 10px; text-align: center; color: #666;">No panes discovered</div>';
+            }
+            
+            html += `
                     </div>
                 </div>
             `;

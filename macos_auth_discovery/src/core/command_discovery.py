@@ -12,6 +12,8 @@ import os
 from datetime import datetime
 from typing import Dict, List, Any
 from pathlib import Path
+from .pane_discovery import SystemSettingsPaneDiscovery
+from .hardware_profile import HardwareProfileManager
 
 class CommandDiscoveryEngine:
     """Discovers system authorization requirements using comprehensive system analysis"""
@@ -31,17 +33,12 @@ class CommandDiscoveryEngine:
         if no_sudo:
             self.logger.info("Running in no-sudo mode - some checks may be skipped")
         
-        # Load system settings panes from config
-        self.system_panes = [
-            "Wi-Fi", "Bluetooth", "Network", "VPN", "Notifications", "Sound", "Focus", 
-            "Screen Time", "General", "Appearance", "Accessibility", "Control Center",
-            "Siri & Spotlight", "Privacy & Security", "Desktop & Dock", "Displays",
-            "Wallpaper", "Screen Saver", "Battery", "Energy Saver", "Keyboard", "Mouse",
-            "Trackpad", "Printers & Scanners", "Game Center", "Internet Accounts",
-            "Passwords", "Wallet & Apple Pay", "Users & Groups", "Touch ID & Passcode",
-            "Login Items", "Date & Time", "Sharing", "Time Machine", "Transfer or Reset",
-            "Software Update", "Storage"
-        ]
+        # Initialize dynamic pane discovery
+        self.pane_discovery = SystemSettingsPaneDiscovery()
+        self._load_system_panes()
+        
+        # Initialize hardware profile manager
+        self.hardware_profile_manager = HardwareProfileManager()
         
         # Comprehensive authorization mapping by System Settings location
         self.authorization_map = {
@@ -206,6 +203,39 @@ class CommandDiscoveryEngine:
         self.current_category = category  # Track what we're currently scanning
         self.progress = int((self.current_check / self.total_checks) * 100)
         self.logger.info(f"Checking {category} ({self.current_check}/{self.total_checks})...")
+
+    def _load_system_panes(self):
+        """Load system settings panes dynamically based on current system"""
+        try:
+            self.logger.info("Discovering System Settings panes dynamically...")
+            discovered_panes = self.pane_discovery.discover_all_panes()
+            self.system_panes = self.pane_discovery.get_pane_names()
+            
+            self.logger.info(f"Discovered {len(self.system_panes)} available panes:")
+            for pane in self.system_panes:
+                self.logger.debug(f"  - {pane}")
+                
+            # Update total checks based on discovered panes
+            base_checks = 50  # Base number of security checks
+            pane_checks = len(self.system_panes) * 2  # Each pane gets 2 checks on average
+            self.total_checks = base_checks + pane_checks
+            
+            # Store full pane info for later use
+            self.discovered_pane_info = discovered_panes
+            
+        except Exception as e:
+            self.logger.error(f"Failed to discover system panes dynamically: {e}")
+            # Fallback to static list
+            self.system_panes = [
+                "Wi-Fi", "Bluetooth", "Network", "VPN", "Notifications", "Sound", "Focus", 
+                "Screen Time", "General", "Appearance", "Accessibility", "Control Center",
+                "Siri & Spotlight", "Privacy & Security", "Desktop & Dock", "Displays",
+                "Wallpaper", "Screen Saver", "Battery", "Energy Saver", "Keyboard", "Mouse",
+                "Trackpad", "Printers & Scanners", "Game Center", "Internet Accounts",
+                "Passwords", "Wallet & Apple Pay", "Users & Groups", "Touch ID & Passcode",
+                "Login Items", "Date & Time", "Sharing", "Time Machine", "Transfer or Reset",
+                "Software Update", "Storage"
+            ]
 
     def _check_tcc_database(self) -> List[Dict[str, Any]]:
         """Check TCC.db for privacy-sensitive permissions"""
@@ -1544,4 +1574,22 @@ class CommandDiscoveryEngine:
             "total_panes": len(self.authorization_map),
             "total_authorizations": sum(len(auths) for auths in self.authorization_map.values()),
             "generated": datetime.now().isoformat()
+        }
+
+    def get_pane_discovery_info(self) -> Dict[str, Any]:
+        """Get information about dynamically discovered System Settings panes"""
+        if hasattr(self, 'pane_discovery'):
+            return self.pane_discovery.get_summary()
+        return {
+            "error": "Pane discovery not initialized",
+            "static_pane_count": len(self.system_panes)
+        }
+
+    def get_hardware_profile_info(self) -> Dict[str, Any]:
+        """Get comprehensive hardware profile information"""
+        if hasattr(self, 'hardware_profile_manager'):
+            return self.hardware_profile_manager.get_hardware_profile()
+        return {
+            "error": "Hardware profile manager not initialized",
+            "model": "Unknown Mac"
         }
