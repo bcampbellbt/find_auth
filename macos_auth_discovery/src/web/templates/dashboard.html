@@ -144,6 +144,17 @@
             background: #ff3b30;
         }
         
+        .btn-outline {
+            background: transparent;
+            color: #667eea;
+            border: 2px solid #667eea;
+        }
+        
+        .btn-outline:hover {
+            background: #667eea;
+            color: white;
+        }
+        
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
@@ -193,22 +204,63 @@
             border-bottom: none;
         }
         
-        .results-table {
-            width: 100%;
-            border-collapse: collapse;
+        .results-table-container {
+            overflow-x: auto;
+            border: 1px solid #e5e5e7;
+            border-radius: 8px;
             margin-top: 1rem;
         }
-        
+
+        .results-table {
+            width: 100%;
+            table-layout: fixed;
+            border-collapse: collapse;
+        }
+
         .results-table th,
         .results-table td {
             padding: 0.8rem;
             text-align: left;
             border-bottom: 1px solid #e5e5e7;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            hyphens: auto;
         }
-        
+
         .results-table th {
             background-color: #f8f9fa;
             font-weight: 600;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        
+        /* Responsive column widths as percentages */
+        .results-table th:nth-child(1), .results-table td:nth-child(1) { width: 18%; } /* Location */
+        .results-table th:nth-child(2), .results-table td:nth-child(2) { width: 12%; } /* Type */
+        .results-table th:nth-child(3), .results-table td:nth-child(3) { width: 10%; } /* Status */
+        .results-table th:nth-child(4), .results-table td:nth-child(4) { width: 12%; } /* Auth Type */
+        .results-table th:nth-child(5), .results-table td:nth-child(5) { width: 30%; } /* Description */
+        .results-table th:nth-child(6), .results-table td:nth-child(6) { width: 18%; } /* Authorization Right */
+        
+        /* Mobile responsive adjustments */
+        @media (max-width: 768px) {
+            .results-table th, .results-table td {
+                padding: 0.5rem;
+                font-size: 0.85rem;
+            }
+            
+            /* Adjust column distribution for mobile */
+            .results-table th:nth-child(1), .results-table td:nth-child(1) { width: 20%; } /* Location */
+            .results-table th:nth-child(2), .results-table td:nth-child(2) { width: 10%; } /* Type */
+            .results-table th:nth-child(3), .results-table td:nth-child(3) { width: 8%; } /* Status */
+            .results-table th:nth-child(4), .results-table td:nth-child(4) { width: 12%; } /* Auth Type */
+            .results-table th:nth-child(5), .results-table td:nth-child(5) { width: 35%; } /* Description */
+            .results-table th:nth-child(6), .results-table td:nth-child(6) { width: 15%; } /* Authorization Right */
+            .results-table th:nth-child(3), .results-table td:nth-child(3) { min-width: 70px; max-width: 80px; }
+            .results-table th:nth-child(4), .results-table td:nth-child(4) { min-width: 80px; max-width: 100px; }
+            .results-table th:nth-child(5), .results-table td:nth-child(5) { min-width: 150px; max-width: 200px; }
+            .results-table th:nth-child(6), .results-table td:nth-child(6) { min-width: 120px; max-width: 150px; }
         }
         
         .alert {
@@ -303,6 +355,36 @@
             padding: 0.8rem 1rem;
             font-size: 1.1rem;
             font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background-color 0.2s ease;
+            user-select: none;
+        }
+        
+        .pane-header:hover {
+            background: #5a67d8;
+        }
+        
+        .pane-header .accordion-icon {
+            font-size: 1.2rem;
+            transition: transform 0.2s ease;
+        }
+        
+        .pane-header.collapsed .accordion-icon {
+            transform: rotate(-90deg);
+        }
+        
+        .pane-content {
+            max-height: 5000px;
+            overflow: visible;
+            transition: max-height 0.3s ease-out;
+        }
+        
+        .pane-content.collapsed {
+            max-height: 0;
+            overflow: hidden;
         }
         
         .auth-type-summary {
@@ -503,8 +585,9 @@
                 <h3>System Settings Authorization Map</h3>
                 <p style="margin-bottom: 1.5rem; color: #666;">Comprehensive mapping of all authorization points organized by System Settings panes.</p>
                 
-                <div style="margin-bottom: 1rem;">
+                <div style="margin-bottom: 1rem; display: flex; gap: 0.5rem; align-items: center;">
                     <button class="btn btn-secondary" onclick="exportAuthMap('json')">Export JSON</button>
+                    <button class="btn btn-outline" onclick="toggleAllAuthPanes()" id="toggleAllBtn">Collapse All</button>
                 </div>
                 
                 <div id="authMapContainer">
@@ -971,18 +1054,19 @@
                 <div style="margin-bottom: 1rem;">
                     <strong>Found ${results.length} authorization points</strong>
                 </div>
-                <table class="results-table">
-                    <thead>
-                        <tr>
-                            <th>Location</th>
-                            <th>Type</th>
-                            <th>Status</th>
-                            <th>Auth Type</th>
-                            <th>Description</th>
-                            <th>Timestamp</th>
-                        </tr>
-                    </thead>
-                    <tbody>
+                <div class="results-table-container">
+                    <table class="results-table">
+                        <thead>
+                            <tr>
+                                <th>Location</th>
+                                <th>Type</th>
+                                <th>Status</th>
+                                <th>Auth Type</th>
+                                <th>Description</th>
+                                <th>Authorization Right</th>
+                            </tr>
+                        </thead>
+                        <tbody>
             `;
             
             results.forEach(result => {
@@ -998,12 +1082,12 @@
                         <td><span style="color: ${result.status === 'enabled' ? 'green' : result.status === 'disabled' ? 'orange' : 'gray'};">●</span> ${result.status || 'N/A'}</td>
                         <td><code style="background: #f5f5f5; padding: 2px 4px; border-radius: 3px;">${result.auth_type || 'N/A'}</code></td>
                         <td>${result.description || 'No description'}</td>
-                        <td style="font-size: 0.8em; color: #666;">${result.timestamp ? new Date(result.timestamp).toLocaleString() : 'N/A'}</td>
+                        <td>${result.right_name ? `<code style="background: #fffbf0; color: #c7930a; padding: 2px 4px; border-radius: 3px; font-size: 0.8em;">${result.right_name}</code>` : '<span style="color: #999;">—</span>'}</td>
                     </tr>
                 `;
             });
             
-            html += '</tbody></table>';
+            html += '</tbody></table></div>';
             container.innerHTML = html;
         }
         
@@ -1246,7 +1330,7 @@
                     }
                     
                     // CSV headers
-                    const headers = ['Name', 'Description', 'Location', 'Type', 'Timestamp'];
+                    const headers = ['Name', 'Description', 'Location', 'Type', 'Auth Type', 'Authorization Right', 'Status'];
                     const csvRows = [headers.join(',')];
                     
                     // CSV data
@@ -1256,7 +1340,9 @@
                             `"${(result.right_description || result.description || 'No description').replace(/"/g, '""')}"`,
                             `"${(result.location || result.pane || result.category || 'Unknown').replace(/"/g, '""')}"`,
                             `"${(result.type || result.category || 'Unknown').replace(/"/g, '""')}"`,
-                            `"${(result.timestamp || new Date().toISOString()).replace(/"/g, '""')}"`
+                            `"${(result.auth_type || 'N/A').replace(/"/g, '""')}"`,
+                            `"${(result.right_name || '').replace(/"/g, '""')}"`,
+                            `"${(result.status || 'N/A').replace(/"/g, '""')}"`
                         ];
                         csvRows.push(row.join(','));
                     });
@@ -1377,14 +1463,22 @@
             html += '</div>';
             
             // Display by pane
-            Object.keys(panes).sort().forEach(pane => {
+            Object.keys(panes).sort().forEach((pane, index) => {
                 const points = panes[pane];
                 const adminCount = points.filter(p => p.auth_type === 'admin').length;
                 const userCount = points.filter(p => p.auth_type === 'user').length;
                 const keychainCount = points.filter(p => p.auth_type === 'keychain').length;
                 
+                const paneId = `auth-pane-${index}`;
+                const isCollapsed = index > 2; // Collapse panes after the first 3
+                
                 html += `<div class="auth-pane">`;
-                html += `<h5 class="pane-header">${pane} (${points.length} points)</h5>`;
+                html += `<h5 class="pane-header ${isCollapsed ? 'collapsed' : ''}" onclick="toggleAuthPane('${paneId}')">`;
+                html += `<span>${pane} (${points.length} points)</span>`;
+                html += `<span class="accordion-icon">${isCollapsed ? '▶' : '▼'}</span>`;
+                html += `</h5>`;
+                
+                html += `<div id="${paneId}" class="pane-content ${isCollapsed ? 'collapsed' : ''}">`;
                 html += `<div class="auth-type-summary">`;
                 if (adminCount > 0) html += `<span class="auth-badge admin">Admin: ${adminCount}</span>`;
                 if (userCount > 0) html += `<span class="auth-badge user">User: ${userCount}</span>`;
@@ -1402,13 +1496,71 @@
                     html += `<div class="auth-point-description">${point.description}</div>`;
                     html += `</div>`;
                 });
-                html += '</div>';
-                html += '</div>';
+                html += '</div>'; // Close auth-points
+                html += '</div>'; // Close pane-content
+                html += '</div>'; // Close auth-pane
             });
             
             container.innerHTML = html;
+            
+            // Update the toggle all button text based on initial state
+            const toggleBtn = document.getElementById('toggleAllBtn');
+            const collapsedPanes = document.querySelectorAll('.pane-content.collapsed');
+            const totalPanes = document.querySelectorAll('.pane-content');
+            
+            if (collapsedPanes.length === totalPanes.length) {
+                toggleBtn.textContent = 'Expand All';
+            } else if (collapsedPanes.length === 0) {
+                toggleBtn.textContent = 'Collapse All';
+            } else {
+                toggleBtn.textContent = 'Collapse All'; // Mixed state defaults to collapse
+            }
         }
         
+        function toggleAuthPane(paneId) {
+            const content = document.getElementById(paneId);
+            const header = content.previousElementSibling;
+            const icon = header.querySelector('.accordion-icon');
+            
+            if (content.classList.contains('collapsed')) {
+                // Expand
+                content.classList.remove('collapsed');
+                header.classList.remove('collapsed');
+                icon.textContent = '▼';
+            } else {
+                // Collapse
+                content.classList.add('collapsed');
+                header.classList.add('collapsed');
+                icon.textContent = '▶';
+            }
+        }
+        
+        function toggleAllAuthPanes() {
+            const allPanes = document.querySelectorAll('.pane-content');
+            const allHeaders = document.querySelectorAll('.pane-header');
+            const allIcons = document.querySelectorAll('.accordion-icon');
+            const toggleBtn = document.getElementById('toggleAllBtn');
+            
+            if (allPanes.length === 0) return;
+            
+            // Check if any panes are expanded
+            const hasExpanded = Array.from(allPanes).some(pane => !pane.classList.contains('collapsed'));
+            
+            if (hasExpanded) {
+                // Collapse all
+                allPanes.forEach(pane => pane.classList.add('collapsed'));
+                allHeaders.forEach(header => header.classList.add('collapsed'));
+                allIcons.forEach(icon => icon.textContent = '▶');
+                toggleBtn.textContent = 'Expand All';
+            } else {
+                // Expand all
+                allPanes.forEach(pane => pane.classList.remove('collapsed'));
+                allHeaders.forEach(header => header.classList.remove('collapsed'));
+                allIcons.forEach(icon => icon.textContent = '▼');
+                toggleBtn.textContent = 'Collapse All';
+            }
+        }
+
         function exportAuthMap(format) {
             fetch('/api/discovery/results')
                 .then(response => response.json())

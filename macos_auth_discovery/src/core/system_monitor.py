@@ -230,8 +230,8 @@ class SystemLevelMonitor:
     def _monitor_security_events(self):
         """Monitor for security-related events"""
         try:
-            # Monitor for TCC (Privacy) events
-            self._monitor_tcc_events()
+            # TCC monitoring disabled - not relevant for authorization requests
+            # self._monitor_tcc_events()
             
             # Monitor for system policy events
             self._monitor_system_policy_events()

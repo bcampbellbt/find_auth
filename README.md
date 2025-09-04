@@ -46,7 +46,6 @@ The tool analyzes these authorization categories:
 - **Firmware Password**: Hardware-level access protection
 
 ### Privacy & Permissions
-- **TCC Database**: Privacy-sensitive app permissions
 - **Location Services**: GPS access controls
 - **Screen Recording**: Display capture permissions
 - **Full Disk Access**: Complete filesystem access
@@ -112,12 +111,10 @@ This ensures the tool works accurately across different macOS versions and syste
 ### Architecture
 - **Flask Web Framework**: Modern web interface
 - **Python 3.13+**: Core application runtime
-- **SQLite Integration**: TCC database analysis
 - **Command-line Tools**: System command integration
 
 ### Discovery Methods
 - System command execution (`spctl`, `csrutil`, `fdesetup`, etc.)
-- Database queries (TCC.db privacy permissions)
 - File system inspection (preference panes, applications)
 - Hardware profiling (security chips, architecture, Touch ID, etc.)
 - Dynamic System Settings extension enumeration

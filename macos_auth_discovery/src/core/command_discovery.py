@@ -7,8 +7,9 @@ Discovers authorization requirements across all major macOS system settings and 
 import logging
 import subprocess
 import json
-import sqlite3
 import os
+import sqlite3
+import plistlib
 from datetime import datetime
 from typing import Dict, List, Any
 from pathlib import Path
@@ -216,7 +217,7 @@ class CommandDiscoveryEngine:
                 self.logger.debug(f"  - {pane}")
                 
             # Update total checks based on discovered panes
-            base_checks = 50  # Base number of security checks
+            base_checks = 49  # Base number of security checks (added Authorization Database check)
             pane_checks = len(self.system_panes) * 2  # Each pane gets 2 checks on average
             self.total_checks = base_checks + pane_checks
             
@@ -237,88 +238,101 @@ class CommandDiscoveryEngine:
                 "Software Update", "Storage"
             ]
 
-    def _check_tcc_database(self) -> List[Dict[str, Any]]:
-        """Check TCC.db for privacy-sensitive permissions"""
-        self._update_progress("TCC Privacy Database")
-        tcc_paths = [
-            "/Library/Application Support/com.apple.TCC/TCC.db",
-            os.path.expanduser("~/Library/Application Support/com.apple.TCC/TCC.db")
-        ]
-        auth_entries = []
+    def _enhance_authorization_rights(self, auth_points: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Enhance authorization points by attempting to find authorization rights for those that don't have them"""
+        # Mapping of common authorization patterns to known rights
+        auth_right_patterns = {
+            # System Preferences categories
+            'system_preferences': 'system.preferences',
+            'network': 'system.preferences.network',
+            'sharing': 'system.preferences.sharing',
+            'users': 'system.preferences.users',
+            'security': 'system.preferences.security',
+            'energy': 'system.preferences.energysaver',
+            'datetime': 'system.preferences.datetime',
+            'printing': 'system.preferences.printing',
+            'software_update': 'system.preferences.software-update',
+            
+            # Admin operations
+            'admin': 'system.privilege.admin',
+            'authentication': 'authenticate-admin',
+            'administrator': 'system.privilege.admin',
+            
+            # Privacy operations
+            'location': 'com.apple.locationmenu.enable',
+            'camera': 'com.apple.tcc.kTCCServiceCamera',
+            'microphone': 'com.apple.tcc.kTCCServiceMicrophone',
+            'screen_recording': 'com.apple.tcc.kTCCServiceScreenCapture',
+            'accessibility': 'com.apple.tcc.kTCCServiceAccessibility',
+            'full_disk_access': 'com.apple.tcc.kTCCServiceSystemPolicyAllFiles',
+            
+            # Network operations
+            'wifi': 'system.preferences.network',
+            'bluetooth': 'system.preferences.network',
+            'vpn': 'system.preferences.network',
+            'firewall': 'system.preferences.firewall',
+            
+            # Developer tools
+            'kernel_extension': 'com.apple.KernelExtensionManagement',
+            'system_extension': 'com.apple.SystemExtensions',
+            'developer_tools': 'com.apple.dt.Xcode',
+            
+            # Time Machine
+            'time_machine': 'system.preferences.timemachine',
+            'backup': 'system.preferences.timemachine',
+            
+            # FileVault and encryption
+            'filevault': 'system.coreservices.fdesetup',
+            'encryption': 'system.coreservices.fdesetup',
+            
+            # Keychain
+            'keychain': 'system.keychain.modify',
+            'password': 'system.keychain.modify'
+        }
         
-        for db_path in tcc_paths:
-            if os.path.exists(db_path):
-                try:
-                    # Use Python's sqlite3 instead of command line for better error handling
-                    conn = sqlite3.connect(db_path)
-                    cursor = conn.cursor()
-                    cursor.execute("SELECT client, service, auth_value FROM access")
-                    rows = cursor.fetchall()
-                    
-                    for client, service, auth_value in rows:
-                        auth_entries.append({
-                            "type": "privacy",
-                            "category": "TCC Permission",
-                            "service": service,
-                            "client": client,
-                            "authorized": auth_value == 2,
-                            "source": db_path,
-                            "timestamp": datetime.now().isoformat(),
-                            "requires_auth": True,
-                            "auth_type": "user_consent",
-                            "description": f"Privacy access for {service} by {client}"
-                        })
-                    conn.close()
-                except Exception as e:
-                    self.logger.error(f"Error reading TCC database {db_path}: {e}")
+        for auth_point in auth_points:
+            # Skip if already has a right_name
+            if auth_point.get('right_name'):
+                continue
+                
+            # Try to find authorization right based on category, type, and description
+            found_right = None
+            
+            # Check category
+            category = auth_point.get('category', '').lower()
+            for pattern, right in auth_right_patterns.items():
+                if pattern in category:
+                    found_right = right
+                    break
+            
+            # Check type if no match found
+            if not found_right:
+                auth_type = auth_point.get('type', '').lower()
+                for pattern, right in auth_right_patterns.items():
+                    if pattern in auth_type:
+                        found_right = right
+                        break
+            
+            # Check description if no match found
+            if not found_right:
+                description = auth_point.get('description', '').lower()
+                for pattern, right in auth_right_patterns.items():
+                    if pattern in description:
+                        found_right = right
+                        break
+            
+            # Check for admin auth_type
+            if not found_right and auth_point.get('auth_type') == 'admin':
+                # If it requires admin but no specific right found, use general admin right
+                found_right = 'system.privilege.admin'
+            
+            # Add the found right to the auth point
+            if found_right:
+                auth_point['right_name'] = found_right
+                self.logger.debug(f"Enhanced authorization point with right: {found_right}")
         
-        return auth_entries
-
-    def _check_security_framework(self) -> List[Dict[str, Any]]:
-        """Check Security framework settings"""
-        self._update_progress("Security Framework")
-        auth_points = []
-        
-        # Check Gatekeeper status
-        code, stdout, stderr = self._run_command("spctl --status")
-        if code == 0:
-            auth_points.append({
-                "type": "security",
-                "category": "Gatekeeper",
-                "status": "enabled" if "assessments enabled" in stdout else "disabled",
-                "requires_auth": True,
-                "auth_type": "admin",
-                "timestamp": datetime.now().isoformat(),
-                "description": "App notarization and code signing verification"
-            })
-
-        # Check System Integrity Protection (SIP)
-        code, stdout, stderr = self._run_command("csrutil status")
-        if code == 0:
-            auth_points.append({
-                "type": "security",
-                "category": "System Integrity Protection",
-                "status": "enabled" if "enabled" in stdout else "disabled",
-                "requires_auth": True,
-                "auth_type": "recovery_mode",
-                "timestamp": datetime.now().isoformat(),
-                "description": "System file and process protection"
-            })
-
-        # Check FileVault status
-        code, stdout, stderr = self._run_command("fdesetup status")
-        if code == 0:
-            auth_points.append({
-                "type": "security",
-                "category": "FileVault",
-                "status": "enabled" if "FileVault is On" in stdout else "disabled",
-                "requires_auth": True,
-                "auth_type": "admin",
-                "timestamp": datetime.now().isoformat(),
-                "description": "Full disk encryption requires authentication for setup and recovery"
-            })
-
         return auth_points
+
 
     def _check_network_security(self) -> List[Dict[str, Any]]:
         """Check network-related security and authorization settings"""
@@ -341,10 +355,139 @@ class CommandDiscoveryEngine:
                 "details": vpn_configs,
                 "requires_auth": True,
                 "auth_type": "user_credentials",
-                "timestamp": datetime.now().isoformat(),
                 "description": "VPN connections requiring authentication"
             })
 
+        return auth_points
+
+    def _check_authorization_database(self) -> List[Dict[str, Any]]:
+        """Check macOS authorization database for authorization rights"""
+        self._update_progress("Authorization Database")
+        auth_points = []
+        
+        try:
+            # First, check authorization.plist for defined rights
+            auth_plist_path = "/System/Library/Security/authorization.plist"
+            if os.path.exists(auth_plist_path):
+                try:
+                    with open(auth_plist_path, 'rb') as f:
+                        plist_data = plistlib.load(f)
+                    
+                    if 'rights' in plist_data:
+                        rights = plist_data['rights']
+                        priority_rights = [
+                            "system.preferences.security",
+                            "system.privilege.admin", 
+                            "authenticate-admin",
+                            "com.apple.KernelExtensionManagement",
+                            "com.apple.SystemExtensions",
+                            "system.preferences",
+                            "system.preferences.users",
+                            "system.preferences.sharing",
+                            "system.preferences.network",
+                            "system.preferences.datetime",
+                            "system.preferences.energysaver",
+                            "system.preferences.printing",
+                            "system.preferences.software-update"
+                        ]
+                        
+                        for right_name, right_config in rights.items():
+                            if any(priority in right_name for priority in priority_rights):
+                                auth_type = "unknown"
+                                if isinstance(right_config, dict):
+                                    if right_config.get('rule') == 'allow':
+                                        auth_type = "none"
+                                    elif right_config.get('rule') == 'deny':
+                                        auth_type = "denied"
+                                    elif 'authenticate' in str(right_config.get('rule', '')):
+                                        auth_type = "admin"
+                                    elif right_config.get('rule') == 'is-admin':
+                                        auth_type = "admin"
+                                    elif right_config.get('rule') == 'default':
+                                        auth_type = "default"
+                                
+                                auth_points.append({
+                                    "type": "authorization",
+                                    "category": "Authorization Rights",
+                                    "right_name": right_name,
+                                    "rule": str(right_config.get('rule', 'unknown')),
+                                    "requires_auth": auth_type in ["admin", "user"],
+                                    "auth_type": auth_type,
+                                    "config": right_config if isinstance(right_config, dict) else {},
+                                    "description": f"Authorization right: {right_name}"
+                                })
+                                
+                except Exception as e:
+                    self.logger.warning(f"Could not parse authorization.plist: {e}")
+            
+            # Check authorization database using security command
+            priority_rights_to_check = [
+                "system.preferences.security",
+                "system.privilege.admin",
+                "authenticate-admin",
+                "system.preferences",
+                "com.apple.KernelExtensionManagement",
+                "com.apple.SystemExtensions"
+            ]
+            
+            for right in priority_rights_to_check:
+                code, stdout, stderr = self._run_command(f"security authorizationdb read {right}")
+                if code == 0:
+                    try:
+                        # Parse the plist output
+                        right_data = plistlib.loads(stdout.encode())
+                        
+                        auth_type = "unknown"
+                        rule = right_data.get('rule', 'unknown')
+                        
+                        # Handle both string and array rules
+                        if isinstance(rule, list):
+                            rule_str = ", ".join(rule)
+                            if any('is-root' in r for r in rule):
+                                auth_type = "admin"
+                            elif any('authenticate' in r for r in rule):
+                                auth_type = "admin"
+                            elif any('is-admin' in r for r in rule):
+                                auth_type = "admin"
+                            else:
+                                auth_type = "complex"
+                        elif isinstance(rule, str):
+                            rule_str = rule
+                            if rule == 'allow':
+                                auth_type = "none"
+                            elif rule == 'deny':
+                                auth_type = "denied"
+                            elif 'authenticate' in rule:
+                                auth_type = "admin"
+                            elif rule == 'is-admin':
+                                auth_type = "admin"
+                            elif rule == 'is-root':
+                                auth_type = "admin"
+                            elif rule == 'default':
+                                auth_type = "default"
+                        else:
+                            rule_str = str(rule)
+                            
+                        auth_points.append({
+                            "type": "authorization",
+                            "category": "Live Authorization Database",
+                            "right_name": right,
+                            "rule": rule_str,
+                            "requires_auth": auth_type in ["admin", "user", "complex"],
+                            "auth_type": auth_type,
+                            "shared": right_data.get('shared', False),
+                            "timeout": right_data.get('timeout', 0),
+                            "allow_root": right_data.get('allow-root', False),
+                            "k_of_n": right_data.get('k-of-n', 1),
+                            "description": f"Live authorization rule for {right}"
+                        })
+                        
+                    except Exception as e:
+                        self.logger.debug(f"Could not parse authorization data for {right}: {e}")
+                        
+        except Exception as e:
+            self.logger.warning(f"Error checking authorization database: {e}")
+            
         return auth_points
 
     def _check_user_accounts(self) -> List[Dict[str, Any]]:
@@ -363,7 +506,6 @@ class CommandDiscoveryEngine:
                 "details": admin_users,
                 "requires_auth": True,
                 "auth_type": "admin",
-                "timestamp": datetime.now().isoformat(),
                 "description": "Users with administrative privileges"
             })
 
@@ -386,7 +528,6 @@ class CommandDiscoveryEngine:
                     "status": "secured",
                     "requires_auth": True,
                     "auth_type": "keychain_password",
-                    "timestamp": datetime.now().isoformat(),
                     "description": f"Keychain requiring authentication: {os.path.basename(keychain)}"
                 })
 
@@ -416,7 +557,6 @@ class CommandDiscoveryEngine:
                     "status": "requires_admin",
                     "requires_auth": True,
                     "auth_type": "admin",
-                    "timestamp": datetime.now().isoformat(),
                     "description": f"System preference pane requiring admin authentication: {pane_name}"
                 })
 
@@ -437,7 +577,6 @@ class CommandDiscoveryEngine:
                 "path": stdout.strip(),
                 "requires_auth": True,
                 "auth_type": "admin",
-                "timestamp": datetime.now().isoformat(),
                 "description": "Developer tools requiring admin privileges for installation"
             })
 
@@ -458,7 +597,6 @@ class CommandDiscoveryEngine:
                 "status": "configured",
                 "requires_auth": True,
                 "auth_type": "admin",
-                "timestamp": datetime.now().isoformat(),
                 "description": "Wi-Fi network configuration requires admin authentication"
             })
         
@@ -472,7 +610,6 @@ class CommandDiscoveryEngine:
                 "status": "stored_passwords",
                 "requires_auth": True,
                 "auth_type": "keychain_access",
-                "timestamp": datetime.now().isoformat(),
                 "description": "Viewing saved Wi-Fi passwords requires authentication"
             })
         
@@ -493,7 +630,6 @@ class CommandDiscoveryEngine:
                 "status": "available",
                 "requires_auth": True,
                 "auth_type": "user_consent",
-                "timestamp": datetime.now().isoformat(),
                 "description": "Bluetooth device pairing and management"
             })
         
@@ -518,7 +654,6 @@ class CommandDiscoveryEngine:
                 "status": "protected",
                 "requires_auth": True,
                 "auth_type": "admin",
-                "timestamp": datetime.now().isoformat(),
                 "description": f"Modifying {category} permissions requires admin authentication"
             })
         
@@ -543,7 +678,6 @@ class CommandDiscoveryEngine:
                 "status": "restricted",
                 "requires_auth": True,
                 "auth_type": "admin",
-                "timestamp": datetime.now().isoformat(),
                 "description": f"{function} requires administrator authentication"
             })
         
@@ -568,7 +702,6 @@ class CommandDiscoveryEngine:
                 "status": "configurable",
                 "requires_auth": True,
                 "auth_type": "admin",
-                "timestamp": datetime.now().isoformat(),
                 "description": f"Enabling {service} requires admin authentication"
             })
         
@@ -589,7 +722,6 @@ class CommandDiscoveryEngine:
                 "status": "configured" if "Running" in stdout else "available",
                 "requires_auth": True,
                 "auth_type": "admin",
-                "timestamp": datetime.now().isoformat(),
                 "description": "Time Machine configuration requires admin authentication"
             })
         
@@ -603,7 +735,6 @@ class CommandDiscoveryEngine:
                 "status": "configured",
                 "requires_auth": True,
                 "auth_type": "admin",
-                "timestamp": datetime.now().isoformat(),
                 "description": "Changing backup destination requires admin authentication"
             })
         
@@ -624,7 +755,6 @@ class CommandDiscoveryEngine:
                 "status": "configurable",
                 "requires_auth": True,
                 "auth_type": "admin",
-                "timestamp": datetime.now().isoformat(),
                 "description": "Modifying automatic update settings requires admin authentication"
             })
         
@@ -645,7 +775,6 @@ class CommandDiscoveryEngine:
                 "status": "configurable",
                 "requires_auth": True,
                 "auth_type": "admin",
-                "timestamp": datetime.now().isoformat(),
                 "description": "Creating and modifying network locations requires admin authentication"
             })
         
@@ -657,7 +786,6 @@ class CommandDiscoveryEngine:
             "status": "configurable",
             "requires_auth": True,
             "auth_type": "admin",
-            "timestamp": datetime.now().isoformat(),
             "description": "Modifying DNS settings requires admin authentication"
         })
         
@@ -682,7 +810,6 @@ class CommandDiscoveryEngine:
                 "status": "configurable",
                 "requires_auth": True,
                 "auth_type": "admin",
-                "timestamp": datetime.now().isoformat(),
                 "description": f"Configuring {feature} accessibility settings may require authentication"
             })
         
@@ -703,7 +830,6 @@ class CommandDiscoveryEngine:
                 "status": "configurable",
                 "requires_auth": True,
                 "auth_type": "admin",
-                "timestamp": datetime.now().isoformat(),
                 "description": "Modifying energy settings requires admin authentication"
             })
         
@@ -724,7 +850,6 @@ class CommandDiscoveryEngine:
                 "status": "configurable",
                 "requires_auth": False,  # Most display settings don't require auth
                 "auth_type": "none",
-                "timestamp": datetime.now().isoformat(),
                 "description": "Basic display settings available to all users"
             })
         
@@ -745,7 +870,6 @@ class CommandDiscoveryEngine:
                 "status": "selectable",
                 "requires_auth": True,
                 "auth_type": "admin",
-                "timestamp": datetime.now().isoformat(),
                 "description": "Changing startup disk requires admin authentication"
             })
         
@@ -766,7 +890,6 @@ class CommandDiscoveryEngine:
                 "status": "managed",
                 "requires_auth": True,
                 "auth_type": "admin",
-                "timestamp": datetime.now().isoformat(),
                 "description": "Modifying certificate trust settings requires admin authentication"
             })
         
@@ -787,7 +910,6 @@ class CommandDiscoveryEngine:
                 "status": "configurable",
                 "requires_auth": True,
                 "auth_type": "admin",
-                "timestamp": datetime.now().isoformat(),
                 "description": "Configuring application firewall requires admin authentication"
             })
         
@@ -808,7 +930,6 @@ class CommandDiscoveryEngine:
                 "status": "managed",
                 "requires_auth": True,
                 "auth_type": "admin",
-                "timestamp": datetime.now().isoformat(),
                 "description": "Managing system extensions requires admin authentication"
             })
         
@@ -829,7 +950,6 @@ class CommandDiscoveryEngine:
                 "status": "configurable",
                 "requires_auth": False,  # Users can modify their own login items
                 "auth_type": "user",
-                "timestamp": datetime.now().isoformat(),
                 "description": "Users can manage their own login items"
             })
         
@@ -841,7 +961,6 @@ class CommandDiscoveryEngine:
             "status": "restricted",
             "requires_auth": True,
             "auth_type": "admin",
-            "timestamp": datetime.now().isoformat(),
             "description": "System-wide launch items require admin authentication"
         })
         
@@ -862,7 +981,6 @@ class CommandDiscoveryEngine:
                 "status": "available",
                 "requires_auth": False,
                 "auth_type": "none",
-                "timestamp": datetime.now().isoformat(),
                 "description": "Audio device configuration"
             })
         
@@ -875,7 +993,6 @@ class CommandDiscoveryEngine:
             "status": "user_setting",
             "requires_auth": False,
             "auth_type": "user",
-            "timestamp": datetime.now().isoformat(),
             "description": "Alert sound configuration"
         })
         
@@ -895,7 +1012,6 @@ class CommandDiscoveryEngine:
             "status": "user_setting",
             "requires_auth": False,
             "auth_type": "user",
-            "timestamp": datetime.now().isoformat(),
             "description": "Focus mode configuration"
         })
         
@@ -915,7 +1031,6 @@ class CommandDiscoveryEngine:
             "status": "system_info",
             "requires_auth": False,
             "auth_type": "none",
-            "timestamp": datetime.now().isoformat(),
             "description": "System information display"
         })
         
@@ -928,7 +1043,6 @@ class CommandDiscoveryEngine:
             "status": "user_setting",
             "requires_auth": False,
             "auth_type": "user",
-            "timestamp": datetime.now().isoformat(),
             "description": "AirDrop and Handoff configuration"
         })
         
@@ -948,7 +1062,6 @@ class CommandDiscoveryEngine:
             "status": "user_setting",
             "requires_auth": False,
             "auth_type": "user",
-            "timestamp": datetime.now().isoformat(),
             "description": "Light/Dark mode configuration"
         })
         
@@ -961,7 +1074,6 @@ class CommandDiscoveryEngine:
             "status": "user_setting",
             "requires_auth": False,
             "auth_type": "user",
-            "timestamp": datetime.now().isoformat(),
             "description": "System accent color"
         })
         
@@ -981,7 +1093,6 @@ class CommandDiscoveryEngine:
             "status": "user_setting",
             "requires_auth": False,
             "auth_type": "user",
-            "timestamp": datetime.now().isoformat(),
             "description": "Dock appearance and behavior"
         })
         
@@ -994,7 +1105,6 @@ class CommandDiscoveryEngine:
             "status": "user_setting",
             "requires_auth": False,
             "auth_type": "user",
-            "timestamp": datetime.now().isoformat(),
             "description": "Mission Control configuration"
         })
         
@@ -1014,7 +1124,6 @@ class CommandDiscoveryEngine:
             "status": "user_setting",
             "requires_auth": False,
             "auth_type": "user",
-            "timestamp": datetime.now().isoformat(),
             "description": "Desktop wallpaper configuration"
         })
         
@@ -1027,7 +1136,6 @@ class CommandDiscoveryEngine:
             "status": "user_setting",
             "requires_auth": False,
             "auth_type": "user",
-            "timestamp": datetime.now().isoformat(),
             "description": "Screen saver configuration"
         })
         
@@ -1047,7 +1155,6 @@ class CommandDiscoveryEngine:
             "status": "user_setting",
             "requires_auth": False,
             "auth_type": "user",
-            "timestamp": datetime.now().isoformat(),
             "description": "Keyboard repeat rate"
         })
         
@@ -1060,7 +1167,6 @@ class CommandDiscoveryEngine:
             "status": "user_setting",
             "requires_auth": False,
             "auth_type": "user",
-            "timestamp": datetime.now().isoformat(),
             "description": "Mouse tracking configuration"
         })
         
@@ -1080,7 +1186,6 @@ class CommandDiscoveryEngine:
             "status": "user_setting",
             "requires_auth": False,
             "auth_type": "user",
-            "timestamp": datetime.now().isoformat(),
             "description": "Trackpad gesture configuration"
         })
         
@@ -1100,7 +1205,6 @@ class CommandDiscoveryEngine:
             "status": "requires_admin",
             "requires_auth": True,
             "auth_type": "admin",
-            "timestamp": datetime.now().isoformat(),
             "description": "Add or remove printers requires admin authorization"
         })
         
@@ -1120,7 +1224,6 @@ class CommandDiscoveryEngine:
             "status": "user_setting",
             "requires_auth": False,
             "auth_type": "user",
-            "timestamp": datetime.now().isoformat(),
             "description": "Game Center account configuration"
         })
         
@@ -1140,7 +1243,6 @@ class CommandDiscoveryEngine:
             "status": "user_setting",
             "requires_auth": False,
             "auth_type": "user",
-            "timestamp": datetime.now().isoformat(),
             "description": "Internet account configuration"
         })
         
@@ -1159,7 +1261,6 @@ class CommandDiscoveryEngine:
             "status": "app_managed",
             "requires_auth": True,
             "auth_type": "password",
-            "timestamp": datetime.now().isoformat(),
             "description": "Password management requires authentication"
         })
         
@@ -1178,7 +1279,6 @@ class CommandDiscoveryEngine:
             "status": "secure_element",
             "requires_auth": True,
             "auth_type": "biometric",
-            "timestamp": datetime.now().isoformat(),
             "description": "Apple Pay configuration requires biometric authentication"
         })
         
@@ -1199,7 +1299,6 @@ class CommandDiscoveryEngine:
                 "status": "biometric_required",
                 "requires_auth": True,
                 "auth_type": "admin",
-                "timestamp": datetime.now().isoformat(),
                 "description": "Touch ID configuration requires admin authentication"
             })
         
@@ -1220,7 +1319,6 @@ class CommandDiscoveryEngine:
                 "status": "admin_required",
                 "requires_auth": True,
                 "auth_type": "admin",
-                "timestamp": datetime.now().isoformat(),
                 "description": "System date/time changes require admin authorization"
             })
         
@@ -1240,7 +1338,6 @@ class CommandDiscoveryEngine:
             "status": "parental_controls",
             "requires_auth": True,
             "auth_type": "password",
-            "timestamp": datetime.now().isoformat(),
             "description": "Screen Time configuration requires Screen Time passcode"
         })
         
@@ -1260,7 +1357,6 @@ class CommandDiscoveryEngine:
             "status": "user_setting",
             "requires_auth": False,
             "auth_type": "user",
-            "timestamp": datetime.now().isoformat(),
             "description": "Control Center module configuration"
         })
         
@@ -1280,7 +1376,6 @@ class CommandDiscoveryEngine:
             "status": "privacy_sensitive",
             "requires_auth": False,
             "auth_type": "user",
-            "timestamp": datetime.now().isoformat(),
             "description": "Siri configuration affects privacy settings"
         })
         
@@ -1293,7 +1388,6 @@ class CommandDiscoveryEngine:
             "status": "user_setting",
             "requires_auth": False,
             "auth_type": "user",
-            "timestamp": datetime.now().isoformat(),
             "description": "Spotlight search configuration"
         })
         
@@ -1313,7 +1407,6 @@ class CommandDiscoveryEngine:
             "status": "user_setting",
             "requires_auth": False,
             "auth_type": "user",
-            "timestamp": datetime.now().isoformat(),
             "description": "Per-app notification configuration"
         })
         
@@ -1333,7 +1426,6 @@ class CommandDiscoveryEngine:
             "status": "network_config",
             "requires_auth": True,
             "auth_type": "admin",
-            "timestamp": datetime.now().isoformat(),
             "description": "VPN configuration requires admin authorization"
         })
         
@@ -1352,7 +1444,6 @@ class CommandDiscoveryEngine:
             "status": "destructive_action",
             "requires_auth": True,
             "auth_type": "admin",
-            "timestamp": datetime.now().isoformat(),
             "description": "System reset requires admin authorization"
         })
         
@@ -1372,7 +1463,6 @@ class CommandDiscoveryEngine:
             "status": "system_info",
             "requires_auth": False,
             "auth_type": "none",
-            "timestamp": datetime.now().isoformat(),
             "description": "Storage information and optimization"
         })
         
@@ -1385,7 +1475,6 @@ class CommandDiscoveryEngine:
             "status": "user_setting",
             "requires_auth": False,
             "auth_type": "user",
-            "timestamp": datetime.now().isoformat(),
             "description": "iCloud storage optimization"
         })
         
@@ -1406,7 +1495,6 @@ class CommandDiscoveryEngine:
                     "status": "available",
                     "requires_auth": auth["auth_type"] != "none",
                     "auth_type": auth["auth_type"],
-                    "timestamp": datetime.now().isoformat(),
                     "description": auth["description"],
                     "source": "authorization_map"
                 })
@@ -1428,9 +1516,8 @@ class CommandDiscoveryEngine:
             # Comprehensive discovery methods - significantly expanded to cover all 36+ System Settings areas
             discovery_methods = [
                 # Core system security methods
-                self._check_tcc_database,
-                self._check_security_framework,
                 self._check_network_security,
+                self._check_authorization_database,
                 self._check_user_accounts,
                 self._check_keychain_access,
                 self._check_system_preferences_auth,
@@ -1494,6 +1581,10 @@ class CommandDiscoveryEngine:
                     self.discovery_results.extend(results)
                 except Exception as e:
                     self.logger.error(f"Error in {method.__name__}: {e}")
+            
+            # Enhance authorization rights for points that don't have them
+            self.logger.info("Enhancing authorization rights for discovered points...")
+            self.discovery_results = self._enhance_authorization_rights(self.discovery_results)
             
             self.progress = 100
             self.end_time = datetime.now()  # Record completion time
