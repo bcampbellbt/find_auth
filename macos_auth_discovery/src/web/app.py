@@ -43,26 +43,37 @@ def create_app():
         
         if discovery_engine:
             is_running = discovery_engine.is_discovery_running()
+            is_completed = discovery_engine.is_discovery_completed()
             progress = discovery_engine.get_progress()
             results_count = len(discovery_engine.get_results())
+            elapsed_seconds = discovery_engine.get_elapsed_seconds()
+            completion_status = discovery_engine.get_completion_status()
             
             return jsonify({
                 'is_running': is_running,
+                'is_completed': is_completed,
+                'completion_status': completion_status,
                 'progress_percent': progress,
                 'current_check': f"Check {discovery_engine.current_check}/{discovery_engine.total_checks}",
+                'current_category': discovery_engine.current_category if hasattr(discovery_engine, 'current_category') else "Not started",
                 'total_checks': discovery_engine.total_checks,
                 'completed_checks': discovery_engine.current_check,
                 'results_count': results_count,
+                'elapsed_seconds': elapsed_seconds,
+                'authorizations_found': results_count,
                 'errors': 0
             })
         
         return jsonify({
             'is_running': False,
+            'is_completed': False,
             'progress_percent': 0,
             'current_check': 'Not started',
             'total_checks': 15,
             'completed_checks': 0,
             'results_count': 0,
+            'elapsed_seconds': 0,
+            'authorizations_found': 0,
             'errors': 0
         })
     
@@ -118,7 +129,7 @@ def create_app():
         
         try:
             if discovery_engine:
-                discovery_engine.is_running = False
+                discovery_engine.stop_discovery()  # Use the proper stop method
             return jsonify({
                 'success': True,
                 'message': 'Discovery stopped successfully'
@@ -152,6 +163,23 @@ def create_app():
             'summary': {'total': 0, 'categories': {}},
             'timestamp': datetime.now().isoformat(),
             'total_found': 0
+        })
+    
+    @app.route('/api/authorization-map')
+    def get_authorization_map():
+        """Get comprehensive authorization map organized by System Settings panes"""
+        global discovery_engine
+        
+        if discovery_engine:
+            auth_map = discovery_engine.get_authorization_map()
+            return jsonify(auth_map)
+        
+        # Return empty map if no engine available
+        return jsonify({
+            'authorization_map': {},
+            'total_panes': 0,
+            'total_authorizations': 0,
+            'generated': datetime.now().isoformat()
         })
     
     @app.route('/api/hardware-profile')
@@ -513,7 +541,7 @@ def _compare_discovery_reports(report1: Dict, report2: Dict) -> Dict:
 
 
 if __name__ == '__main__':
-    app = create_app()
     print("Starting Flask web server...")
-    print("Dashboard available at: http://localhost:5000")
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    print("Dashboard available at: http://localhost:5001")
+    app = create_app()
+    app.run(host='0.0.0.0', port=5001, debug=True)

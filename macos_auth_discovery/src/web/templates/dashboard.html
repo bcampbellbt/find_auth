@@ -79,6 +79,11 @@
             background-color: #ff3b30;
         }
         
+        .status-error {
+            background-color: #ff9500;
+            animation: pulse 2s infinite;
+        }
+        
         @keyframes pulse {
             0% { opacity: 1; }
             50% { opacity: 0.5; }
@@ -262,6 +267,126 @@
         .tab-content.active {
             display: block;
         }
+        
+        /* Authorization Map Styles */
+        .auth-map-summary {
+            background: #f0f8ff;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+            border-left: 4px solid #667eea;
+        }
+        
+        .auth-map-summary h4 {
+            margin: 0;
+            color: #1d1d1f;
+        }
+        
+        .auth-pane {
+            margin-bottom: 1.5rem;
+            border: 1px solid #e5e5e7;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        
+        .pane-header {
+            background: #667eea;
+            color: white;
+            margin: 0;
+            padding: 0.8rem 1rem;
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+        
+        .auth-type-summary {
+            background: #f8f9fa;
+            padding: 0.5rem 1rem;
+            border-bottom: 1px solid #e5e5e7;
+        }
+        
+        .auth-badge {
+            display: inline-block;
+            padding: 0.2rem 0.6rem;
+            margin-right: 0.5rem;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+        
+        .auth-badge.admin {
+            background: #fff5f5;
+            color: #c53030;
+            border: 1px solid #feb2b2;
+        }
+        
+        .auth-badge.user {
+            background: #f0fff4;
+            color: #38a169;
+            border: 1px solid #9ae6b4;
+        }
+        
+        .auth-badge.keychain {
+            background: #fffaf0;
+            color: #d69e2e;
+            border: 1px solid #fbb6ce;
+        }
+        
+        .auth-points {
+            padding: 0;
+        }
+        
+        .auth-point {
+            padding: 1rem;
+            border-bottom: 1px solid #f7fafc;
+        }
+        
+        .auth-point:last-child {
+            border-bottom: none;
+        }
+        
+        .auth-point-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+        
+        .auth-type-badge {
+            display: inline-block;
+            padding: 0.2rem 0.5rem;
+            margin-right: 0.75rem;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .auth-type-badge.admin {
+            background: #c53030;
+            color: white;
+        }
+        
+        .auth-type-badge.user {
+            background: #38a169;
+            color: white;
+        }
+        
+        .auth-type-badge.keychain {
+            background: #d69e2e;
+            color: white;
+        }
+        
+        .auth-point-location {
+            font-size: 0.9rem;
+            color: #667eea;
+            font-weight: 500;
+            margin-bottom: 0.3rem;
+        }
+        
+        .auth-point-description {
+            font-size: 0.9rem;
+            color: #4a5568;
+            line-height: 1.4;
+        }
     </style>
 </head>
 <body>
@@ -274,6 +399,7 @@
         <div class="nav-tabs">
             <button class="nav-tab active" onclick="showTab('dashboard')">Dashboard</button>
             <button class="nav-tab" onclick="showTab('results')">Results</button>
+            <button class="nav-tab" onclick="showTab('authmap')">Authorization Map</button>
             <button class="nav-tab" onclick="showTab('hardware')">Hardware</button>
         </div>
         
@@ -293,6 +419,7 @@
                     <div style="margin-top: 1rem;">
                         <button class="btn" id="startBtn" onclick="startDiscovery()">Start Discovery</button>
                         <button class="btn btn-danger" id="stopBtn" onclick="stopDiscovery()" disabled>Stop Discovery</button>
+                        <button class="btn btn-secondary" id="retryBtn" onclick="retryConnection()" style="display: none;">Retry Connection</button>
                     </div>
                 </div>
                 
@@ -342,10 +469,25 @@
                 <div style="margin-bottom: 1rem;">
                     <button class="btn btn-secondary" onclick="exportResults('json')">Export JSON</button>
                     <button class="btn btn-secondary" onclick="exportResults('csv')">Export CSV</button>
-                    <button class="btn btn-secondary" onclick="refreshResults()">Refresh</button>
                 </div>
                 <div id="resultsContainer">
                     <p>No results available. Run discovery to generate results.</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Authorization Map Tab -->
+        <div id="authmap" class="tab-content">
+            <div class="card">
+                <h3>System Settings Authorization Map</h3>
+                <p style="margin-bottom: 1.5rem; color: #666;">Comprehensive mapping of all authorization points organized by System Settings panes.</p>
+                
+                <div style="margin-bottom: 1rem;">
+                    <button class="btn btn-secondary" onclick="exportAuthMap('json')">Export JSON</button>
+                </div>
+                
+                <div id="authMapContainer">
+                    <p>Loading authorization map...</p>
                 </div>
             </div>
         </div>
@@ -363,12 +505,18 @@
     
     <script>
         let discoveryRunning = false;
+        let discoveryCompleted = false;
         let statusInterval = null;
+        let refreshInterval = null;
+        let serverConnected = true;
+        let connectionRetryCount = 0;
+        const maxRetryAttempts = 3;
         
         // Initialize dashboard
         document.addEventListener('DOMContentLoaded', function() {
             loadHardwareProfile();
             startStatusUpdates();
+            startRefreshInterval();
             refreshResults(); // Load any existing results on page load
         });
         
@@ -385,11 +533,27 @@
             // Show selected tab
             document.getElementById(tabName).classList.add('active');
             event.target.classList.add('active');
+            
+            // Load content based on tab
+            if (tabName === 'authmap') {
+                loadAuthorizationMap();
+            } else if (tabName === 'results') {
+                // Auto-refresh results when switching to results tab
+                if (serverConnected) {
+                    refreshResults();
+                }
+            }
         }
         
         // Discovery control
+        // Discovery management
         async function startDiscovery() {
             try {
+                // Reset connection state when starting discovery
+                serverConnected = true;
+                connectionRetryCount = 0;
+                discoveryCompleted = false; // Reset completion state
+                
                 const response = await fetch('/api/discovery/start', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'}
@@ -400,6 +564,10 @@
                     discoveryRunning = true;
                     updateDiscoveryUI();
                     showAlert('Discovery started successfully!', 'success');
+                    
+                    // Restart intervals if they were stopped
+                    startStatusUpdates();
+                    startRefreshInterval();
                 } else {
                     showAlert(result.message, 'info');
                 }
@@ -417,6 +585,7 @@
                 const result = await response.json();
                 
                 discoveryRunning = false;
+                discoveryCompleted = false; // Reset completion state when manually stopped
                 updateDiscoveryUI();
                 showAlert('Discovery stopped', 'info');
             } catch (error) {
@@ -426,15 +595,40 @@
         
         // Status updates
         function startStatusUpdates() {
+            if (statusInterval) {
+                clearInterval(statusInterval);
+            }
             statusInterval = setInterval(updateStatus, 2000); // Update every 2 seconds
+        }
+        
+        function stopStatusUpdates() {
+            if (statusInterval) {
+                clearInterval(statusInterval);
+                statusInterval = null;
+            }
         }
         
         async function updateStatus() {
             try {
                 const response = await fetch('/api/discovery/status');
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
                 const status = await response.json();
                 
+                // Connection successful - reset retry count and mark as connected
+                connectionRetryCount = 0;
+                if (!serverConnected) {
+                    serverConnected = true;
+                    console.log('Connection restored to server');
+                    showAlert('Connection restored to server', 'success');
+                    startRefreshInterval(); // Resume auto-refresh
+                }
+                
                 discoveryRunning = status.is_running;
+                discoveryCompleted = status.completion_status === 'completed'; // Only true if successfully completed
                 updateDiscoveryUI();
                 updateProgressUI(status);
                 updateStatsUI(status);
@@ -443,6 +637,20 @@
                 
             } catch (error) {
                 console.error('Error updating status:', error);
+                connectionRetryCount++;
+                
+                if (connectionRetryCount >= maxRetryAttempts && serverConnected) {
+                    serverConnected = false;
+                    console.log('Server connection lost, stopping status updates');
+                    showAlert('Server connection lost. Discovery may have been stopped.', 'warning');
+                    stopStatusUpdates();
+                    stopRefreshInterval();
+                    
+                    // Set UI to stopped state
+                    discoveryRunning = false;
+                    discoveryCompleted = false;
+                    updateDiscoveryUI();
+                }
             }
         }
         
@@ -450,15 +658,32 @@
             const statusEl = document.getElementById('discoveryStatus');
             const startBtn = document.getElementById('startBtn');
             const stopBtn = document.getElementById('stopBtn');
+            const retryBtn = document.getElementById('retryBtn');
             
-            if (discoveryRunning) {
+            if (!serverConnected) {
+                // Server disconnected - show retry button, hide others
+                statusEl.innerHTML = '<p><span class="status-indicator status-error"></span> Server Disconnected</p>';
+                startBtn.disabled = true;
+                stopBtn.disabled = true;
+                retryBtn.style.display = 'inline-block';
+            } else if (discoveryRunning) {
+                // Discovery running normally
                 statusEl.innerHTML = '<p><span class="status-indicator status-running"></span> Discovery Running</p>';
                 startBtn.disabled = true;
                 stopBtn.disabled = false;
+                retryBtn.style.display = 'none';
+            } else if (discoveryCompleted) {
+                // Discovery completed successfully
+                statusEl.innerHTML = '<p><span class="status-indicator status-stopped"></span> Discovery Complete</p>';
+                startBtn.disabled = false;
+                stopBtn.disabled = true;
+                retryBtn.style.display = 'none';
             } else {
+                // Discovery stopped but server connected
                 statusEl.innerHTML = '<p><span class="status-indicator status-stopped"></span> Discovery Stopped</p>';
                 startBtn.disabled = false;
                 stopBtn.disabled = true;
+                retryBtn.style.display = 'none';
             }
         }
         
@@ -468,12 +693,18 @@
             const currentPane = document.getElementById('currentPane');
             
             progressFill.style.width = status.progress_percent + '%';
-            currentPane.textContent = status.current_path || 'None';
+            currentPane.textContent = status.current_category || 'None';
             
             if (status.is_running) {
                 progressText.textContent = `Progress: ${status.progress_percent}% (${status.authorizations_found} authorizations found)`;
+            } else if (status.completion_status === 'completed') {
+                progressText.textContent = `Complete: ${status.authorizations_found} authorizations found`;
+            } else if (status.completion_status === 'stopped') {
+                progressText.textContent = `Stopped: ${status.authorizations_found} authorizations found`;
+            } else if (status.completion_status === 'error') {
+                progressText.textContent = `Error: ${status.authorizations_found} authorizations found`;
             } else if (status.progress_percent > 0) {
-                progressText.textContent = `Completed: ${status.authorizations_found} authorizations found`;
+                progressText.textContent = `Stopped: ${status.authorizations_found} authorizations found`;
             } else {
                 progressText.textContent = 'Ready to start discovery';
             }
@@ -513,8 +744,18 @@
         
         // Results management
         async function refreshResults() {
+            // Don't try to refresh if server is disconnected
+            if (!serverConnected) {
+                return;
+            }
+            
             try {
                 const response = await fetch('/api/discovery/results');
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
                 const data = await response.json();
                 
                 console.log('API Response:', data);
@@ -527,7 +768,11 @@
                 
             } catch (error) {
                 console.error('Error in refreshResults:', error);
-                showAlert('Error loading results: ' + error.message, 'error');
+                
+                // Only show error if we think we're still connected
+                if (serverConnected) {
+                    showAlert('Error loading results: ' + error.message, 'error');
+                }
             }
         }
         
@@ -724,25 +969,64 @@
         // Export functions
         async function exportResults(format) {
             try {
-                const response = await fetch(`/api/discovery/export/${format}`);
-                
-                if (response.ok) {
-                    const blob = await response.blob();
-                    const url = window.URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `auth_discovery.${format}`;
-                    document.body.appendChild(a);
-                    a.click();
-                    window.URL.revokeObjectURL(url);
-                    document.body.removeChild(a);
-                    
-                    showAlert(`Results exported as ${format.toUpperCase()}`, 'success');
-                } else {
-                    throw new Error('Export failed');
+                // Get current results
+                const response = await fetch('/api/discovery/results');
+                if (!response.ok) {
+                    throw new Error('Failed to fetch results');
                 }
                 
+                const data = await response.json();
+                let content = '';
+                let mimeType = '';
+                let fileName = '';
+                
+                if (format === 'json') {
+                    content = JSON.stringify(data, null, 2);
+                    mimeType = 'application/json';
+                    fileName = 'auth_discovery_results.json';
+                } else if (format === 'csv') {
+                    // Convert to CSV
+                    const results = data.discovery_results || data.results || [];
+                    if (results.length === 0) {
+                        throw new Error('No results to export');
+                    }
+                    
+                    // CSV headers
+                    const headers = ['Name', 'Description', 'Location', 'Type', 'Timestamp'];
+                    const csvRows = [headers.join(',')];
+                    
+                    // CSV data
+                    results.forEach(result => {
+                        const row = [
+                            `"${(result.right_name || result.element_name || result.type || 'Unknown').replace(/"/g, '""')}"`,
+                            `"${(result.right_description || result.description || 'No description').replace(/"/g, '""')}"`,
+                            `"${(result.location || result.pane || result.category || 'Unknown').replace(/"/g, '""')}"`,
+                            `"${(result.type || result.category || 'Unknown').replace(/"/g, '""')}"`,
+                            `"${(result.timestamp || new Date().toISOString()).replace(/"/g, '""')}"`
+                        ];
+                        csvRows.push(row.join(','));
+                    });
+                    
+                    content = csvRows.join('\n');
+                    mimeType = 'text/csv';
+                    fileName = 'auth_discovery_results.csv';
+                }
+                
+                // Create and download file
+                const blob = new Blob([content], { type: mimeType });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = fileName;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+                
+                showAlert(`Results exported as ${format.toUpperCase()}`, 'success');
+                
             } catch (error) {
+                console.error('Export error:', error);
                 showAlert('Error exporting results: ' + error.message, 'error');
             }
         }
@@ -765,10 +1049,189 @@
             }, 5000);
         }
         
-        // Auto-refresh results when discovery is running
-        setInterval(() => {
-            refreshResults(); // Always refresh results to show current data
-        }, 3000); // Refresh every 3 seconds
+        // Authorization Map Functions
+        function loadAuthorizationMap() {
+            const container = document.getElementById('authMapContainer');
+            container.innerHTML = '<p>Loading authorization map from discovery results...</p>';
+            
+            // Get discovery results and transform them into an authorization map
+            fetch('/api/discovery/results')
+                .then(response => response.json())
+                .then(data => {
+                    displayAuthorizationMapFromResults(data);
+                })
+                .catch(error => {
+                    console.error('Error loading authorization map:', error);
+                    container.innerHTML = '<p class="error">Error loading authorization map. Run discovery to generate results.</p>';
+                });
+        }
+        
+        function displayAuthorizationMapFromResults(data) {
+            const container = document.getElementById('authMapContainer');
+            
+            // Extract results from the data structure
+            let results = [];
+            if (data.discovery_results && Array.isArray(data.discovery_results)) {
+                results = data.discovery_results;
+            } else if (data.authorization_results) {
+                for (const category in data.authorization_results) {
+                    if (Array.isArray(data.authorization_results[category])) {
+                        results = results.concat(data.authorization_results[category]);
+                    }
+                }
+            } else if (data.results && Array.isArray(data.results)) {
+                results = data.results;
+            } else if (Array.isArray(data)) {
+                results = data;
+            }
+            
+            if (results.length === 0) {
+                container.innerHTML = '<p>No authorization points found. Run discovery to generate authorization map.</p>';
+                return;
+            }
+            
+            // Group results by System Settings pane
+            const panes = {};
+            
+            results.forEach(result => {
+                const paneName = result.location || result.pane || result.category || 'Unknown Location';
+                const mainPane = paneName.split(' → ')[0]; // Get the main pane name
+                
+                if (!panes[mainPane]) {
+                    panes[mainPane] = [];
+                }
+                
+                // Determine authorization type based on the result
+                let authType = 'user'; // default
+                if (result.right_name && (result.right_name.includes('admin') || result.right_name.includes('Admin'))) {
+                    authType = 'admin';
+                } else if (result.type && result.type.toLowerCase().includes('keychain')) {
+                    authType = 'keychain';
+                }
+                
+                panes[mainPane].push({
+                    key: result.right_name || result.element_name || result.type || 'Unknown',
+                    auth_type: authType,
+                    location: paneName,
+                    description: result.right_description || result.description || 'No description available'
+                });
+            });
+            
+            let html = '<div class="auth-map-summary">';
+            html += `<h4>Authorization Map: ${results.length} Authorization Points across ${Object.keys(panes).length} System Settings Panes</h4>`;
+            html += '<p style="margin: 0.5rem 0; color: #666;">Generated from current discovery results</p>';
+            html += '</div>';
+            
+            // Display by pane
+            Object.keys(panes).sort().forEach(pane => {
+                const points = panes[pane];
+                const adminCount = points.filter(p => p.auth_type === 'admin').length;
+                const userCount = points.filter(p => p.auth_type === 'user').length;
+                const keychainCount = points.filter(p => p.auth_type === 'keychain').length;
+                
+                html += `<div class="auth-pane">`;
+                html += `<h5 class="pane-header">${pane} (${points.length} points)</h5>`;
+                html += `<div class="auth-type-summary">`;
+                if (adminCount > 0) html += `<span class="auth-badge admin">Admin: ${adminCount}</span>`;
+                if (userCount > 0) html += `<span class="auth-badge user">User: ${userCount}</span>`;
+                if (keychainCount > 0) html += `<span class="auth-badge keychain">Keychain: ${keychainCount}</span>`;
+                html += `</div>`;
+                
+                html += '<div class="auth-points">';
+                points.forEach(point => {
+                    html += `<div class="auth-point">`;
+                    html += `<div class="auth-point-header">`;
+                    html += `<span class="auth-type-badge ${point.auth_type}">${point.auth_type.toUpperCase()}</span>`;
+                    html += `<strong>${point.key}</strong>`;
+                    html += `</div>`;
+                    html += `<div class="auth-point-location">${point.location}</div>`;
+                    html += `<div class="auth-point-description">${point.description}</div>`;
+                    html += `</div>`;
+                });
+                html += '</div>';
+                html += '</div>';
+            });
+            
+            container.innerHTML = html;
+        }
+        
+        function exportAuthMap(format) {
+            fetch('/api/discovery/results')
+                .then(response => response.json())
+                .then(data => {
+                    if (format === 'json') {
+                        // Structure the data as an authorization map
+                        const authMap = {
+                            generated_at: new Date().toISOString(),
+                            source: 'discovery_results',
+                            total_authorization_points: (data.discovery_results || data.results || []).length,
+                            authorization_points: data
+                        };
+                        
+                        const blob = new Blob([JSON.stringify(authMap, null, 2)], { type: 'application/json' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = 'macos_authorization_map.json';
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                        
+                        showAlert('Authorization map exported as JSON', 'success');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error exporting authorization map:', error);
+                    showAlert('Error exporting authorization map. Run discovery first.', 'error');
+                });
+        }
+        
+        // Connection management
+        async function retryConnection() {
+            if (serverConnected) {
+                return; // Already connected
+            }
+            
+            try {
+                const response = await fetch('/api/discovery/status');
+                if (response.ok) {
+                    serverConnected = true;
+                    connectionRetryCount = 0;
+                    console.log('Connection restored to server');
+                    showAlert('Connection restored to server', 'success');
+                    startStatusUpdates();
+                    startRefreshInterval();
+                    updateStatus(); // Get current status
+                }
+            } catch (error) {
+                console.log('Connection retry failed:', error);
+            }
+        }
+        
+        // Auto-refresh management
+        function startRefreshInterval() {
+            if (refreshInterval) {
+                clearInterval(refreshInterval);
+            }
+            refreshInterval = setInterval(() => {
+                if (serverConnected) {
+                    refreshResults();
+                }
+            }, 3000); // Refresh every 3 seconds
+        }
+        
+        function stopRefreshInterval() {
+            if (refreshInterval) {
+                clearInterval(refreshInterval);
+                refreshInterval = null;
+            }
+        }
+        
+        // Start auto-refresh on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            startRefreshInterval();
+        });
     </script>
 </body>
 </html>

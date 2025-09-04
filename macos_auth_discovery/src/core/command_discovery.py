@@ -24,6 +24,10 @@ class CommandDiscoveryEngine:
         self.no_sudo = no_sudo
         self.total_checks = 50  # Significantly increased for comprehensive coverage
         self.current_check = 0
+        self.current_category = "Not started"  # Track current scanning category
+        self.start_time = None  # Track when discovery starts
+        self.end_time = None  # Track when discovery completes
+        self.completion_status = "not_started"  # "not_started", "running", "completed", "stopped", "error"
         if no_sudo:
             self.logger.info("Running in no-sudo mode - some checks may be skipped")
         
@@ -38,6 +42,145 @@ class CommandDiscoveryEngine:
             "Login Items", "Date & Time", "Sharing", "Time Machine", "Transfer or Reset",
             "Software Update", "Storage"
         ]
+        
+        # Comprehensive authorization mapping by System Settings location
+        self.authorization_map = {
+            "Wi-Fi": [
+                {"element": "Network Configuration", "auth_type": "admin", "description": "Modify Wi-Fi network settings"},
+                {"element": "Advanced Settings", "auth_type": "admin", "description": "Configure Wi-Fi advanced options"},
+                {"element": "View Saved Passwords", "auth_type": "keychain", "description": "View stored Wi-Fi passwords"}
+            ],
+            "Bluetooth": [
+                {"element": "Device Pairing", "auth_type": "user_consent", "description": "Pair new Bluetooth devices"},
+                {"element": "Advanced Settings", "auth_type": "admin", "description": "Configure Bluetooth advanced options"}
+            ],
+            "Network": [
+                {"element": "Network Locations", "auth_type": "admin", "description": "Create/modify network locations"},
+                {"element": "DNS Settings", "auth_type": "admin", "description": "Modify DNS configuration"},
+                {"element": "Proxies", "auth_type": "admin", "description": "Configure proxy settings"},
+                {"element": "VPN Configuration", "auth_type": "admin", "description": "Add/modify VPN connections"}
+            ],
+            "Privacy & Security": [
+                {"element": "Location Services", "auth_type": "admin", "description": "Enable/disable location services"},
+                {"element": "Contacts", "auth_type": "admin", "description": "Manage app access to contacts"},
+                {"element": "Calendars", "auth_type": "admin", "description": "Manage app access to calendars"},
+                {"element": "Reminders", "auth_type": "admin", "description": "Manage app access to reminders"},
+                {"element": "Photos", "auth_type": "admin", "description": "Manage app access to photos"},
+                {"element": "Camera", "auth_type": "admin", "description": "Manage app access to camera"},
+                {"element": "Microphone", "auth_type": "admin", "description": "Manage app access to microphone"},
+                {"element": "Screen Recording", "auth_type": "admin", "description": "Manage screen recording permissions"},
+                {"element": "Files and Folders", "auth_type": "admin", "description": "Manage file system access"},
+                {"element": "Full Disk Access", "auth_type": "admin", "description": "Grant complete disk access"},
+                {"element": "Accessibility", "auth_type": "admin", "description": "Manage accessibility permissions"},
+                {"element": "Developer Tools", "auth_type": "admin", "description": "Allow debugging and development tools"},
+                {"element": "Input Monitoring", "auth_type": "admin", "description": "Monitor keyboard and mouse input"},
+                {"element": "FileVault", "auth_type": "admin", "description": "Enable/disable disk encryption"},
+                {"element": "Firewall", "auth_type": "admin", "description": "Configure application firewall"},
+                {"element": "Gatekeeper", "auth_type": "admin", "description": "Modify app security settings"},
+                {"element": "Security Extensions", "auth_type": "admin", "description": "Approve system extensions"}
+            ],
+            "Users & Groups": [
+                {"element": "Add User", "auth_type": "admin", "description": "Create new user accounts"},
+                {"element": "Delete User", "auth_type": "admin", "description": "Remove user accounts"},
+                {"element": "Change Password", "auth_type": "admin", "description": "Modify user passwords"},
+                {"element": "Admin Privileges", "auth_type": "admin", "description": "Grant/revoke admin rights"},
+                {"element": "Parental Controls", "auth_type": "admin", "description": "Configure user restrictions"},
+                {"element": "Login Options", "auth_type": "admin", "description": "Modify login settings"},
+                {"element": "Fast User Switching", "auth_type": "admin", "description": "Enable user switching"}
+            ],
+            "Sharing": [
+                {"element": "Screen Sharing", "auth_type": "admin", "description": "Enable remote screen access"},
+                {"element": "File Sharing", "auth_type": "admin", "description": "Share files over network"},
+                {"element": "Media Sharing", "auth_type": "admin", "description": "Share media libraries"},
+                {"element": "Printer Sharing", "auth_type": "admin", "description": "Share connected printers"},
+                {"element": "Remote Login", "auth_type": "admin", "description": "Enable SSH access"},
+                {"element": "Remote Management", "auth_type": "admin", "description": "Allow remote administration"},
+                {"element": "Remote Apple Events", "auth_type": "admin", "description": "Enable remote scripting"},
+                {"element": "Internet Sharing", "auth_type": "admin", "description": "Share internet connection"},
+                {"element": "Bluetooth Sharing", "auth_type": "admin", "description": "Share files via Bluetooth"},
+                {"element": "Content Caching", "auth_type": "admin", "description": "Cache content for network"}
+            ],
+            "Time Machine": [
+                {"element": "Enable Backups", "auth_type": "admin", "description": "Turn Time Machine on/off"},
+                {"element": "Select Backup Disk", "auth_type": "admin", "description": "Choose backup destination"},
+                {"element": "Backup Options", "auth_type": "admin", "description": "Configure backup settings"},
+                {"element": "Exclude Items", "auth_type": "admin", "description": "Exclude files from backup"}
+            ],
+            "Software Update": [
+                {"element": "Install Updates", "auth_type": "admin", "description": "Install system updates"},
+                {"element": "Automatic Updates", "auth_type": "admin", "description": "Configure auto-update settings"},
+                {"element": "Advanced Options", "auth_type": "admin", "description": "Beta and developer updates"}
+            ],
+            "General": [
+                {"element": "Startup Disk", "auth_type": "admin", "description": "Select boot disk"},
+                {"element": "Software Update", "auth_type": "admin", "description": "System update preferences"},
+                {"element": "Login Items", "auth_type": "user", "description": "Manage startup applications"},
+                {"element": "Language & Region", "auth_type": "admin", "description": "System language settings"}
+            ],
+            "Accessibility": [
+                {"element": "Display", "auth_type": "user", "description": "Visual accessibility options"},
+                {"element": "Zoom", "auth_type": "user", "description": "Screen magnification"},
+                {"element": "VoiceOver", "auth_type": "user", "description": "Screen reader settings"},
+                {"element": "Descriptions", "auth_type": "user", "description": "Audio descriptions"},
+                {"element": "Captions", "auth_type": "user", "description": "Subtitle preferences"},
+                {"element": "Motor", "auth_type": "user", "description": "Motor accessibility"},
+                {"element": "Switch Control", "auth_type": "admin", "description": "Switch-based navigation"},
+                {"element": "Voice Control", "auth_type": "admin", "description": "Voice navigation"},
+                {"element": "Keyboard", "auth_type": "user", "description": "Keyboard accessibility"},
+                {"element": "Pointer Control", "auth_type": "user", "description": "Mouse/trackpad accessibility"},
+                {"element": "Hearing", "auth_type": "user", "description": "Audio accessibility"},
+                {"element": "Audio", "auth_type": "user", "description": "Sound accessibility options"}
+            ],
+            "Energy Saver": [
+                {"element": "Sleep Settings", "auth_type": "admin", "description": "Configure sleep timers"},
+                {"element": "Power Adapter", "auth_type": "admin", "description": "Power adapter settings"},
+                {"element": "Battery", "auth_type": "admin", "description": "Battery optimization"},
+                {"element": "Schedule", "auth_type": "admin", "description": "Scheduled power events"}
+            ],
+            "Keyboard": [
+                {"element": "Modifier Keys", "auth_type": "user", "description": "Remap modifier keys"},
+                {"element": "Shortcuts", "auth_type": "user", "description": "Keyboard shortcuts"},
+                {"element": "Input Sources", "auth_type": "admin", "description": "Add/remove keyboards"},
+                {"element": "Dictation", "auth_type": "user", "description": "Voice dictation settings"}
+            ],
+            "Mouse": [
+                {"element": "Tracking Speed", "auth_type": "user", "description": "Mouse sensitivity"},
+                {"element": "Scrolling", "auth_type": "user", "description": "Scroll behavior"},
+                {"element": "Double-Click Speed", "auth_type": "user", "description": "Click timing"}
+            ],
+            "Trackpad": [
+                {"element": "Point & Click", "auth_type": "user", "description": "Trackpad clicking"},
+                {"element": "Scroll & Zoom", "auth_type": "user", "description": "Gesture settings"},
+                {"element": "More Gestures", "auth_type": "user", "description": "Advanced gestures"}
+            ],
+            "Printers & Scanners": [
+                {"element": "Add Printer", "auth_type": "admin", "description": "Install new printers"},
+                {"element": "Remove Printer", "auth_type": "admin", "description": "Remove printers"},
+                {"element": "Printer Options", "auth_type": "admin", "description": "Configure printer settings"}
+            ],
+            "Internet Accounts": [
+                {"element": "Add Account", "auth_type": "user", "description": "Add email/calendar accounts"},
+                {"element": "Account Settings", "auth_type": "user", "description": "Modify account settings"}
+            ],
+            "Passwords": [
+                {"element": "AutoFill Passwords", "auth_type": "keychain", "description": "Manage saved passwords"},
+                {"element": "Password Options", "auth_type": "admin", "description": "Password generation settings"}
+            ],
+            "Touch ID & Passcode": [
+                {"element": "Add Fingerprint", "auth_type": "admin", "description": "Enroll fingerprints"},
+                {"element": "Delete Fingerprint", "auth_type": "admin", "description": "Remove fingerprints"},
+                {"element": "Use Touch ID for", "auth_type": "admin", "description": "Touch ID permissions"}
+            ],
+            "Date & Time": [
+                {"element": "Set Date & Time", "auth_type": "admin", "description": "Modify system time"},
+                {"element": "Time Zone", "auth_type": "admin", "description": "Change time zone"},
+                {"element": "Network Time", "auth_type": "admin", "description": "Automatic time sync"}
+            ],
+            "Storage": [
+                {"element": "Optimize Storage", "auth_type": "user", "description": "Storage optimization"},
+                {"element": "Store in iCloud", "auth_type": "user", "description": "iCloud storage settings"}
+            ]
+        }
         
     def _run_command(self, command: str) -> tuple[int, str, str]:
         """Run a shell command and return exit code, stdout, stderr"""
@@ -60,6 +203,7 @@ class CommandDiscoveryEngine:
     def _update_progress(self, category: str):
         """Update discovery progress"""
         self.current_check += 1
+        self.current_category = category  # Track what we're currently scanning
         self.progress = int((self.current_check / self.total_checks) * 100)
         self.logger.info(f"Checking {category} ({self.current_check}/{self.total_checks})...")
 
@@ -673,10 +817,35 @@ class CommandDiscoveryEngine:
         
         return auth_points
 
+    def _generate_comprehensive_authorization_map(self) -> List[Dict[str, Any]]:
+        """Generate comprehensive authorization map from known System Settings locations"""
+        self._update_progress("Comprehensive Authorization Mapping")
+        auth_points = []
+        
+        for pane_name, authorizations in self.authorization_map.items():
+            for auth in authorizations:
+                auth_points.append({
+                    "type": "system_settings",
+                    "category": auth["element"],
+                    "pane": pane_name,
+                    "location": f"{pane_name} → {auth['element']}",
+                    "status": "available",
+                    "requires_auth": auth["auth_type"] != "none",
+                    "auth_type": auth["auth_type"],
+                    "timestamp": datetime.now().isoformat(),
+                    "description": auth["description"],
+                    "source": "authorization_map"
+                })
+        
+        return auth_points
+
     def discover_all_authorizations(self) -> List[Dict[str, Any]]:
         """Run comprehensive authorization discovery"""
         self.logger.info("Starting comprehensive macOS authorization discovery...")
         self.is_running = True
+        self.completion_status = "running"  # Set to running
+        self.start_time = datetime.now()  # Record start time
+        self.end_time = None  # Reset end time
         self.progress = 0
         self.current_check = 0
         self.discovery_results = []
@@ -709,7 +878,10 @@ class CommandDiscoveryEngine:
                 self._check_certificate_trust_settings,
                 self._check_application_firewall,
                 self._check_system_extensions,
-                self._check_login_items_comprehensive
+                self._check_login_items_comprehensive,
+                
+                # Comprehensive authorization mapping
+                self._generate_comprehensive_authorization_map
             ]
             
             for method in discovery_methods:
@@ -720,10 +892,14 @@ class CommandDiscoveryEngine:
                     self.logger.error(f"Error in {method.__name__}: {e}")
             
             self.progress = 100
+            self.end_time = datetime.now()  # Record completion time
+            self.completion_status = "completed"  # Mark as successfully completed
             self.logger.info(f"Discovery complete. Found {len(self.discovery_results)} authorization points.")
             
         except Exception as e:
             self.logger.error(f"Discovery error: {e}")
+            self.completion_status = "error"  # Mark as error
+            self.end_time = datetime.now()  # Record error time
         finally:
             self.is_running = False
             
@@ -732,10 +908,38 @@ class CommandDiscoveryEngine:
     def get_progress(self) -> int:
         """Get current discovery progress percentage"""
         return self.progress
+    
+    def get_elapsed_seconds(self) -> float:
+        """Get elapsed time since discovery started"""
+        if self.start_time is None:
+            return 0.0
+        
+        # If discovery is completed or errored, return the total time taken
+        if self.completion_status in ["completed", "error", "stopped"] and self.end_time is not None:
+            return (self.end_time - self.start_time).total_seconds()
+        
+        # If discovery is still running, return current elapsed time
+        return (datetime.now() - self.start_time).total_seconds()
 
     def is_discovery_running(self) -> bool:
         """Check if discovery is currently running"""
         return self.is_running
+    
+    def is_discovery_completed(self) -> bool:
+        """Check if discovery has completed successfully"""
+        return self.completion_status == "completed"
+    
+    def get_completion_status(self) -> str:
+        """Get the current completion status"""
+        return self.completion_status
+    
+    def stop_discovery(self):
+        """Stop the discovery process manually"""
+        if self.is_running:
+            self.is_running = False
+            self.completion_status = "stopped"
+            self.end_time = datetime.now()
+            self.logger.info("Discovery stopped manually")
 
     def get_results(self) -> List[Dict[str, Any]]:
         """Get discovery results"""
@@ -757,4 +961,13 @@ class CommandDiscoveryEngine:
             "total": len(self.discovery_results),
             "categories": categories,
             "last_updated": datetime.now().isoformat()
+        }
+
+    def get_authorization_map(self) -> Dict[str, Any]:
+        """Get the complete authorization map organized by System Settings panes"""
+        return {
+            "authorization_map": self.authorization_map,
+            "total_panes": len(self.authorization_map),
+            "total_authorizations": sum(len(auths) for auths in self.authorization_map.values()),
+            "generated": datetime.now().isoformat()
         }
