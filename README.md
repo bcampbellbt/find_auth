@@ -143,8 +143,6 @@ The tool will guide you through granting necessary permissions:
 
 ## Installation
 
-## Installation
-
 ### One-Command Setup (Recommended)
 ```bash
 # Clone and run in one command
@@ -173,12 +171,6 @@ pip install -r requirements.txt
 
 # 6. Run the application
 python3 app.py
-```
-
-### Docker Setup (Alternative)
-For containerized deployment:
-```bash
-# Coming soon - Docker support in development
 ```
 
 ## Usage
@@ -258,8 +250,6 @@ macos_auth_discovery/
 
 ## Troubleshooting
 
-### Common Issues
-
 **Permission Denied Errors**
 ```bash
 # Grant Full Disk Access to Terminal.app in:
@@ -291,9 +281,3 @@ python3 app.py
 ## License
 
 MIT License - see LICENSE file for details.
-
-## Acknowledgments
-
-- Built for macOS security research community
-- Inspired by need for comprehensive authorization visibility
-- Designed with privacy and security best practices
