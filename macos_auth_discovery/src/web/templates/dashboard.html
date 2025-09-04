@@ -48,6 +48,13 @@
             margin-bottom: 2rem;
         }
         
+        .dashboard-top-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+        
         .card {
             background: white;
             border-radius: 12px;
@@ -405,7 +412,8 @@
         
         <!-- Dashboard Tab -->
         <div id="dashboard" class="tab-content active">
-            <div class="dashboard-grid">
+            <!-- Top row with Discovery Control and Statistics -->
+            <div class="dashboard-top-row">
                 <!-- Discovery Control -->
                 <div class="card">
                     <h3>Discovery Control</h3>
@@ -440,20 +448,13 @@
                             <div class="stat-label">Elapsed (sec)</div>
                         </div>
                     </div>
-                </div>
-                
-                <!-- System Status -->
-                <div class="card">
-                    <h3>System Status</h3>
-                    <div id="systemStatus">
-                        <p>System monitor: <span id="monitorStatus">Ready</span></p>
-                        <p>Current pane: <span id="currentPane">None</span></p>
-                        <p>Last update: <span id="lastUpdate">Never</span></p>
+                    <div style="text-align: center; font-size: 0.8rem; color: #666; margin-top: 0.5rem;">
+                        Last updated: <span id="lastUpdate">Never</span>
                     </div>
                 </div>
             </div>
             
-            <!-- Recent Activity -->
+            <!-- Recent Activity (full width below) -->
             <div class="card">
                 <h3>Recent Authorization Events</h3>
                 <div id="recentEvents">
@@ -466,6 +467,18 @@
         <div id="results" class="tab-content">
             <div class="card">
                 <h3>Discovery Results</h3>
+                <div class="alert alert-info" style="margin-bottom: 1rem;">
+                    <h4 style="margin: 0 0 0.5rem 0;">Understanding Status Values</h4>
+                    <p style="margin: 0; font-size: 0.9rem;">The <strong>Status</strong> column shows the current configuration state of each authorization point:</p>
+                    <ul style="margin: 0.5rem 0 0 1.5rem; font-size: 0.9rem;">
+                        <li><strong>enabled/disabled:</strong> Whether the security feature is currently active</li>
+                        <li><strong>configured:</strong> The feature has been set up and is available</li>
+                        <li><strong>available:</strong> The feature is present but may not be actively configured</li>
+                        <li><strong>protected/secured:</strong> The item is secured and requires authorization to access</li>
+                        <li><strong>requires_admin:</strong> Administrative privileges are needed to modify</li>
+                        <li><strong>restricted:</strong> Access is limited by system policies</li>
+                    </ul>
+                </div>
                 <div style="margin-bottom: 1rem;">
                     <button class="btn btn-secondary" onclick="exportResults('json')">Export JSON</button>
                     <button class="btn btn-secondary" onclick="exportResults('csv')">Export CSV</button>
@@ -515,8 +528,9 @@
         // Initialize dashboard
         document.addEventListener('DOMContentLoaded', function() {
             loadHardwareProfile();
-            startStatusUpdates();
-            startRefreshInterval();
+            // Don't start status updates automatically - only when discovery is started
+            // Just check initial status once without starting intervals
+            checkInitialStatus();
             refreshResults(); // Load any existing results on page load
         });
         
@@ -542,6 +556,42 @@
                 if (serverConnected) {
                     refreshResults();
                 }
+            }
+        }
+        
+        // Check initial status without starting continuous polling
+        async function checkInitialStatus() {
+            try {
+                const response = await fetch('/api/discovery/status');
+                if (response.ok) {
+                    const status = await response.json();
+                    
+                    // Only update UI, don't start continuous polling
+                    discoveryRunning = status.is_running;
+                    discoveryCompleted = status.completion_status === 'completed';
+                    updateDiscoveryUI();
+                    updateProgressUI(status);
+                    updateStatsUI(status);
+                    
+                    document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();
+                    
+                    // If discovery is actually running, then start status updates
+                    if (status.is_running) {
+                        startStatusUpdates();
+                        startRefreshInterval();
+                    }
+                } else {
+                    // Server not available, set default state
+                    discoveryRunning = false;
+                    discoveryCompleted = false;
+                    updateDiscoveryUI();
+                }
+            } catch (error) {
+                console.log('Initial status check failed:', error);
+                // Set default state
+                discoveryRunning = false;
+                discoveryCompleted = false;
+                updateDiscoveryUI();
             }
         }
         
@@ -584,8 +634,14 @@
                 });
                 const result = await response.json();
                 
+                // Manually stopped - set state and stop polling
                 discoveryRunning = false;
-                discoveryCompleted = false; // Reset completion state when manually stopped
+                discoveryCompleted = false; // Not completed, just stopped
+                
+                // Stop status updates since we manually stopped
+                stopStatusUpdates();
+                stopRefreshInterval();
+                
                 updateDiscoveryUI();
                 showAlert('Discovery stopped', 'info');
             } catch (error) {
@@ -627,8 +683,20 @@
                     startRefreshInterval(); // Resume auto-refresh
                 }
                 
-                discoveryRunning = status.is_running;
-                discoveryCompleted = status.completion_status === 'completed'; // Only true if successfully completed
+                // Only update discovery state if it's actually running on the server
+                // Don't override local state if we manually stopped it
+                if (status.is_running) {
+                    discoveryRunning = true;
+                    discoveryCompleted = false;
+                } else if (status.completion_status === 'completed' && discoveryRunning) {
+                    // Only mark as completed if we were running and server says completed
+                    discoveryRunning = false;
+                    discoveryCompleted = true;
+                } else if (!discoveryRunning) {
+                    // Keep current stopped state if we're not running
+                    discoveryCompleted = false;
+                }
+                
                 updateDiscoveryUI();
                 updateProgressUI(status);
                 updateStatsUI(status);
@@ -690,10 +758,8 @@
         function updateProgressUI(status) {
             const progressFill = document.getElementById('progressFill');
             const progressText = document.getElementById('progressText');
-            const currentPane = document.getElementById('currentPane');
             
             progressFill.style.width = status.progress_percent + '%';
-            currentPane.textContent = status.current_category || 'None';
             
             if (status.is_running) {
                 progressText.textContent = `Progress: ${status.progress_percent}% (${status.authorizations_found} authorizations found)`;
@@ -711,10 +777,22 @@
         }
         
         function updateStatsUI(status) {
+            // Update elapsed time from status
+            const elapsedElement = document.getElementById('elapsedTime');
+            if (elapsedElement) {
+                elapsedElement.textContent = Math.round(status.elapsed_seconds || 0);
+            }
+            
             // Update statistics from the latest discovery results
             fetch('/api/discovery/results')
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}`);
+                    }
+                    return response.json();
+                })
                 .then(data => {
+                    console.log('Stats update - received data:', data);
                     let totalCount = 0;
                     let categories = new Set();
                     
@@ -730,16 +808,31 @@
                         }
                     }
                     
-                    document.getElementById('totalAuthorizations').textContent = totalCount;
-                    document.getElementById('uniqueRights').textContent = categories.size;
+                    console.log(`Stats update - total: ${totalCount}, categories: ${categories.size}`);
+                    
+                    const totalElement = document.getElementById('totalAuthorizations');
+                    const rightsElement = document.getElementById('uniqueRights');
+                    
+                    if (totalElement) {
+                        totalElement.textContent = totalCount;
+                    }
+                    if (rightsElement) {
+                        rightsElement.textContent = categories.size;
+                    }
                 })
                 .catch(error => {
-                    console.error('Error updating stats:', error);
-                    document.getElementById('totalAuthorizations').textContent = status.results_count || 0;
-                    document.getElementById('uniqueRights').textContent = '0';
+                    console.error('Error updating stats from results:', error);
+                    // Fallback to status data
+                    const totalElement = document.getElementById('totalAuthorizations');
+                    const rightsElement = document.getElementById('uniqueRights');
+                    
+                    if (totalElement) {
+                        totalElement.textContent = status.results_count || status.authorizations_found || 0;
+                    }
+                    if (rightsElement) {
+                        rightsElement.textContent = '0';
+                    }
                 });
-            
-            document.getElementById('elapsedTime').textContent = Math.round(status.elapsed_seconds || 0);
         }
         
         // Results management
