@@ -85,6 +85,9 @@ reports/
 temp/
 .DS_Store
 
+# Bundle exports (generated portable archives)
+macos_auth_discovery_*.tar.gz
+
 # Personal information
 *bcampbell*
 *campbell*

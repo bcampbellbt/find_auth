@@ -2,16 +2,48 @@
 
 A comprehensive tool for discovering and analyzing macOS system settings that require authentication or authorization. Perfect for security teams, system administrators, and compliance auditing.
 
-## 🚀 Quick Start for Teams
+## Quick Start
 
-### One-Command Setup
-```bash
-git clone https://github.com/bcampbellbt/find_auth.git
-cd find_auth/macos_auth_discovery
-./run.sh
-```
+### Option 1: Direct Setup (Team Development)
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/bcampbellbt/find_auth.git
+   cd find_auth/macos_auth_discovery
+   ```
 
-Open [http://localhost:5000](http://localhost:5000) in your browser and click "Start Discovery"
+2. **Run the tool (automatic setup):**
+   ```bash
+   ./run.sh
+   ```
+
+3. **Access the dashboard:**
+   Open your browser to [http://localhost:5000](http://localhost:5000)
+
+### Option 2: Portable Bundle (VM Testing/Distribution)
+1. **Create portable bundle:**
+   ```bash
+   ./bundle_export.sh
+   ```
+
+2. **Copy bundle to target system:**
+   ```bash
+   # Copy the generated .tar.gz file to your VM or target system
+   scp macos_auth_discovery_*.tar.gz user@target-system:
+   ```
+
+3. **Extract and run on target system:**
+   ```bash
+   tar -xzf macos_auth_discovery_*.tar.gz
+   cd macos_auth_discovery_*
+   ./run.sh
+   ```
+
+**Bundle Benefits:**
+- ✅ No repository access required
+- ✅ Completely portable (48KB compressed)
+- ✅ Self-contained with all dependencies
+- ✅ Perfect for VM testing across different macOS versions
+- ✅ Easy distribution to team members or test environments
 
 ### What You'll Need
 - **macOS 10.15+** (Catalina or later)
