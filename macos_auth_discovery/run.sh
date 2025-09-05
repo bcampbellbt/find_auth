@@ -64,6 +64,7 @@ echo "=================================================="
 echo "🚀 Starting Web Dashboard"
 echo "=================================================="
 echo "Dashboard URL: http://localhost:5000"
+echo "📱 The web interface will open automatically in your browser"
 echo "Press Ctrl+C to stop the server"
 echo ""
 echo "💡 First time setup:"
@@ -71,6 +72,20 @@ echo "   1. Open System Settings > Privacy & Security"
 echo "   2. Grant 'Full Disk Access' to Terminal.app"
 echo "   3. Restart this tool for full functionality"
 echo "=================================================="
+
+# Function to open browser after a delay
+open_browser() {
+    sleep 3  # Wait for Flask to start
+    echo "🌐 Opening browser..."
+    if command -v open &> /dev/null; then
+        open "http://localhost:5000"
+    else
+        echo "💡 Please manually open: http://localhost:5000"
+    fi
+}
+
+# Start browser opener in background
+open_browser &
 
 # Run the Flask web application
 python3 app.py
